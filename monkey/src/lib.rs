@@ -1,7 +1,5 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+#![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
+
+pub mod lexer;
+pub mod token;
