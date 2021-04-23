@@ -42,6 +42,7 @@ pub enum TokenKind {
     FALSE,
 }
 
+#[derive(Clone)]
 pub struct Token<'src> {
     pub kind: TokenKind,
     pub(crate) literal: &'src str,

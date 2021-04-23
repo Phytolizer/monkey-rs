@@ -13,7 +13,7 @@ pub struct Lexer<'src> {
 }
 
 impl<'src> Lexer<'src> {
-    pub fn new(input: &'src str) -> Self {
+    pub fn New(input: &'src str) -> Self {
         let mut lexer = Self {
             input_chars: input.char_indices().peekable(),
             input,
@@ -173,7 +173,7 @@ mod tests {
         ";
 
         NextTokenTests {
-            lexer: Lexer::new(input),
+            lexer: Lexer::New(input),
             expectedLiterals: vec![
                 "let", "five", "=", "5", ";", "let", "ten", "=", "10", ";", "let", "add", "=",
                 "fn", "(", "x", ",", "y", ")", "{", "x", "+", "y", ";", "}", ";", "let", "result",

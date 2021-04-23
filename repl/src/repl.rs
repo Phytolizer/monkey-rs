@@ -21,7 +21,7 @@ pub(crate) fn Start(i: &mut dyn io::Read, o: &mut dyn io::Write) -> io::Result<(
             break;
         }
 
-        let mut l = Lexer::new(&line);
+        let mut l = Lexer::New(&line);
 
         loop {
             let tok = l.NextToken();
