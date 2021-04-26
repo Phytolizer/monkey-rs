@@ -43,3 +43,19 @@ fn EvalBooleanExpression() {
         testBooleanObject(evaluated.unwrap(), expected);
     }
 }
+
+#[test]
+fn EvalBangOperator() {
+    let tests = vec![
+        ("!true;", false),
+        ("!false;", true),
+        ("!5;", false),
+        ("!!true;", true),
+        ("!!false;", false),
+        ("!!5;", true),
+    ];
+    for (input, expected) in tests {
+        let evaluated = testEval(input);
+        testBooleanObject(evaluated.unwrap(), expected);
+    }
+}
