@@ -21,7 +21,7 @@ pub trait Object: std::fmt::Debug + Clone {
     fn Inspect(&self) -> String;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Integer {
     pub value: i64,
 }
@@ -36,7 +36,7 @@ impl Object for Integer {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Boolean {
     pub value: bool,
 }
@@ -51,7 +51,7 @@ impl Object for Boolean {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Null;
 
 impl Object for Null {
