@@ -1,5 +1,18 @@
 use enum_dispatch::enum_dispatch;
 
+pub(crate) trait Truthy {
+    fn isTruthy(&self) -> bool;
+}
+
+impl Truthy for ObjectEnum {
+    fn isTruthy(&self) -> bool {
+        !matches!(
+            self,
+            ObjectEnum::Null(Null) | ObjectEnum::Boolean(Boolean { value: false })
+        )
+    }
+}
+
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ObjectKind {

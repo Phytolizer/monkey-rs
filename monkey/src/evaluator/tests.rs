@@ -3,6 +3,7 @@ use std::convert::TryInto;
 use crate::lexer::Lexer;
 use crate::object::Boolean;
 use crate::object::Integer;
+use crate::object::Null;
 use crate::object::ObjectEnum;
 use crate::parser::Parser;
 
@@ -93,5 +94,31 @@ fn EvalBangOperator() {
     for (input, expected) in tests {
         let evaluated = testEval(input);
         testBooleanObject(evaluated.unwrap(), expected);
+    }
+}
+
+fn testNullObject(obj: ObjectEnum) {
+    assert_eq!(obj, Null.into())
+}
+
+#[test]
+fn EvalIfExpression() {
+    let tests = vec![
+        ("if (true) { 10 }", Some(10)),
+        ("if (false) { 10 }", None),
+        ("if (1) { 10 }", Some(10)),
+        ("if (1 < 2) { 10 }", Some(10)),
+        ("if (1 > 2) { 10 }", None),
+        ("if (1 > 2) { 10 } else { 20 }", Some(20)),
+        ("if (1 < 2) { 10 } else { 20 }", Some(10)),
+    ];
+
+    for (input, expected) in tests {
+        let evaluated = testEval(input);
+        if let Some(integer) = expected {
+            testIntegerObject(evaluated.unwrap(), integer);
+        } else {
+            testNullObject(evaluated.unwrap());
+        }
     }
 }

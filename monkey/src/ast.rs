@@ -22,6 +22,7 @@ pub enum StatementEnum<'src> {
     Let(LetStatement<'src>),
     Return(ReturnStatement<'src>),
     Expression(ExpressionStatement<'src>),
+    Block(BlockStatement<'src>),
 }
 
 impl<'src> Node<'src> for StatementEnum<'src> {
@@ -30,6 +31,7 @@ impl<'src> Node<'src> for StatementEnum<'src> {
             Self::Let(s) => s.TokenLiteral(),
             Self::Return(s) => s.TokenLiteral(),
             Self::Expression(s) => s.TokenLiteral(),
+            Self::Block(s) => s.TokenLiteral(),
         }
     }
 
@@ -38,6 +40,7 @@ impl<'src> Node<'src> for StatementEnum<'src> {
             Self::Let(s) => s.String(),
             Self::Return(s) => s.String(),
             Self::Expression(s) => s.String(),
+            Self::Block(s) => s.String(),
         }
     }
 }
@@ -306,6 +309,8 @@ impl<'src> Node<'src> for BlockStatement<'src> {
         itertools::join(self.statements.iter().map(|s| s.String()), "")
     }
 }
+
+impl<'src> Statement<'src> for BlockStatement<'src> {}
 
 #[derive(Debug, Clone)]
 pub struct FunctionLiteral<'src> {
