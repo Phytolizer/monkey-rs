@@ -1,6 +1,7 @@
 use enum_dispatch::enum_dispatch;
 
 #[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ObjectKind {
     INTEGER,
     BOOLEAN,

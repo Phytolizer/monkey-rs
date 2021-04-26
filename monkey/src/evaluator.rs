@@ -1,10 +1,14 @@
+use std::convert::TryInto;
+
 use crate::ast::ExpressionEnum;
 use crate::ast::NodeEnum;
 use crate::ast::StatementEnum;
 use crate::object::Boolean;
 use crate::object::Integer;
 use crate::object::Null;
+use crate::object::Object;
 use crate::object::ObjectEnum;
+use crate::object::ObjectKind;
 
 pub fn Eval(node: NodeEnum) -> Option<ObjectEnum> {
     match node {
@@ -17,6 +21,11 @@ pub fn Eval(node: NodeEnum) -> Option<ObjectEnum> {
         NodeEnum::Expression(ExpressionEnum::PrefixExpression(p)) => {
             let right = Eval((*p.right).into())?;
             Some(evalPrefixExpression(p.operator, right))
+        }
+        NodeEnum::Expression(ExpressionEnum::InfixExpression(i)) => {
+            let left = Eval((*i.left).into())?;
+            let right = Eval((*i.right).into())?;
+            Some(evalInfixExpression(i.operator, left, right))
         }
         _ => Some(Null.into()),
     }
@@ -47,6 +56,54 @@ fn evalBangOperatorExpression(right: ObjectEnum) -> ObjectEnum {
 fn evalMinusPrefixOperatorExpression(right: ObjectEnum) -> ObjectEnum {
     match right {
         ObjectEnum::Integer(Integer { value }) => Integer { value: -value }.into(),
+        _ => Null.into(),
+    }
+}
+
+fn evalInfixExpression(operator: &str, left: ObjectEnum, right: ObjectEnum) -> ObjectEnum {
+    if left.Type() == ObjectKind::INTEGER && right.Type() == ObjectKind::INTEGER {
+        evalIntegerInfixExpression(operator, left, right)
+    } else {
+        Null.into()
+    }
+}
+
+fn evalIntegerInfixExpression(operator: &str, left: ObjectEnum, right: ObjectEnum) -> ObjectEnum {
+    let left: Integer = left.try_into().unwrap();
+    let right: Integer = right.try_into().unwrap();
+    match operator {
+        "+" => Integer {
+            value: left.value + right.value,
+        }
+        .into(),
+        "-" => Integer {
+            value: left.value - right.value,
+        }
+        .into(),
+        "*" => Integer {
+            value: left.value * right.value,
+        }
+        .into(),
+        "/" => Integer {
+            value: left.value / right.value,
+        }
+        .into(),
+        "<" => Boolean {
+            value: left.value < right.value,
+        }
+        .into(),
+        ">" => Boolean {
+            value: left.value > right.value,
+        }
+        .into(),
+        "==" => Boolean {
+            value: left.value == right.value,
+        }
+        .into(),
+        "!=" => Boolean {
+            value: left.value != right.value,
+        }
+        .into(),
         _ => Null.into(),
     }
 }
