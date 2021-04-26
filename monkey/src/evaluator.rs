@@ -25,6 +25,7 @@ pub fn Eval(node: NodeEnum) -> Option<ObjectEnum> {
 fn evalPrefixExpression(operator: &str, right: ObjectEnum) -> ObjectEnum {
     match operator {
         "!" => evalBangOperatorExpression(right),
+        "-" => evalMinusPrefixOperatorExpression(right),
         _ => Null.into(),
     }
 }
@@ -42,6 +43,14 @@ fn evalBangOperatorExpression(right: ObjectEnum) -> ObjectEnum {
         _ => Boolean { value: false }.into(),
     }
 }
+
+fn evalMinusPrefixOperatorExpression(right: ObjectEnum) -> ObjectEnum {
+    match right {
+        ObjectEnum::Integer(Integer { value }) => Integer { value: -value }.into(),
+        _ => Null.into(),
+    }
+}
+
 fn evalStatements(statements: Vec<StatementEnum>) -> Option<ObjectEnum> {
     let mut result: Option<ObjectEnum> = Some(Null.into());
     for stmt in statements {

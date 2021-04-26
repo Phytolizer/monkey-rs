@@ -28,7 +28,7 @@ fn testBooleanObject(obj: ObjectEnum, expected: bool) {
 
 #[test]
 fn EvalIntegerExpression() {
-    let tests = vec![("5", 5), ("10", 10)];
+    let tests = vec![("5", 5), ("10", 10), ("-5", -5), ("-10", -10)];
     for (input, expected) in tests {
         let evaluated = testEval(input);
         testIntegerObject(evaluated.unwrap(), expected);
