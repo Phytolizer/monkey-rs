@@ -63,6 +63,16 @@ fn evalMinusPrefixOperatorExpression(right: ObjectEnum) -> ObjectEnum {
 fn evalInfixExpression(operator: &str, left: ObjectEnum, right: ObjectEnum) -> ObjectEnum {
     if left.Type() == ObjectKind::INTEGER && right.Type() == ObjectKind::INTEGER {
         evalIntegerInfixExpression(operator, left, right)
+    } else if operator == "==" {
+        Boolean {
+            value: left == right,
+        }
+        .into()
+    } else if operator == "!=" {
+        Boolean {
+            value: left != right,
+        }
+        .into()
     } else {
         Null.into()
     }

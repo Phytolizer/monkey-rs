@@ -9,7 +9,7 @@ pub enum ObjectKind {
 }
 
 #[enum_dispatch]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ObjectEnum {
     Integer(Integer),
     Boolean(Boolean),
@@ -17,12 +17,12 @@ pub enum ObjectEnum {
 }
 
 #[enum_dispatch(ObjectEnum)]
-pub trait Object: std::fmt::Debug + Clone {
+pub trait Object: std::fmt::Debug + Clone + PartialEq {
     fn Type(&self) -> ObjectKind;
     fn Inspect(&self) -> String;
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Integer {
     pub value: i64,
 }
@@ -37,7 +37,7 @@ impl Object for Integer {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Boolean {
     pub value: bool,
 }
@@ -52,7 +52,7 @@ impl Object for Boolean {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Null;
 
 impl Object for Null {
