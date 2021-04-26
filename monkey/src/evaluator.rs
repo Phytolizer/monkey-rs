@@ -1,8 +1,10 @@
 use std::convert::TryInto;
 
+use crate::ast::BlockStatement;
 use crate::ast::ExpressionEnum;
 use crate::ast::IfExpression;
 use crate::ast::NodeEnum;
+use crate::ast::Program;
 use crate::ast::StatementEnum;
 use crate::object::Boolean;
 use crate::object::Integer;
@@ -10,13 +12,18 @@ use crate::object::Null;
 use crate::object::Object;
 use crate::object::ObjectEnum;
 use crate::object::ObjectKind;
+use crate::object::ReturnValue;
 use crate::object::Truthy;
 
 pub fn Eval(node: NodeEnum) -> Option<ObjectEnum> {
     match node {
-        NodeEnum::Program(p) => evalStatements(p.statements),
+        NodeEnum::Program(p) => evalProgram(p),
         NodeEnum::Statement(StatementEnum::Expression(e)) => Eval(e.expression.into()),
-        NodeEnum::Statement(StatementEnum::Block(b)) => evalStatements(b.statements),
+        NodeEnum::Statement(StatementEnum::Block(b)) => evalBlockStatement(b),
+        NodeEnum::Statement(StatementEnum::Return(r)) => {
+            let val = Eval(r.returnValue.into())?;
+            Some(ReturnValue(Box::new(val)).into())
+        }
         NodeEnum::Expression(ExpressionEnum::IntegerLiteral(i)) => {
             Some(Integer { value: i.value }.into())
         }
@@ -135,12 +142,27 @@ fn evalIfExpression(i: IfExpression) -> Option<ObjectEnum> {
     }
 }
 
-fn evalStatements(statements: Vec<StatementEnum>) -> Option<ObjectEnum> {
-    let mut result: Option<ObjectEnum> = Some(Null.into());
-    for stmt in statements {
+fn evalProgram(program: Program) -> Option<ObjectEnum> {
+    let mut result: Option<ObjectEnum> = None;
+    for stmt in program.statements {
         result = Eval(stmt.into());
+
+        if let Some(ObjectEnum::ReturnValue(rv)) = result {
+            return Some(rv.into());
+        }
     }
 
+    result
+}
+
+fn evalBlockStatement(bs: BlockStatement) -> Option<ObjectEnum> {
+    let mut result: Option<ObjectEnum> = None;
+    for statement in bs.statements {
+        result = Eval(statement.into());
+        if let Some(ObjectEnum::ReturnValue(_)) = &result {
+            return result;
+        }
+    }
     result
 }
 

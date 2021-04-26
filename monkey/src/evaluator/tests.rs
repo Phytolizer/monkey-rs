@@ -5,6 +5,7 @@ use crate::object::Boolean;
 use crate::object::Integer;
 use crate::object::Null;
 use crate::object::ObjectEnum;
+use crate::object::ReturnValue;
 use crate::parser::Parser;
 
 use super::Eval;
@@ -120,5 +121,31 @@ fn EvalIfExpression() {
         } else {
             testNullObject(evaluated.unwrap());
         }
+    }
+}
+
+#[test]
+fn EvalReturnStatement() {
+    let tests = vec![
+        ("return 10;", 10),
+        ("return 10; 9;", 10),
+        ("return 2 * 5; 9;", 10),
+        ("9; return 2 * 5; 9;", 10),
+        (
+            "
+            if (10 > 1) {
+                if (10 > 1) {
+                    return 10;
+                }
+                return 1;
+            }
+            ",
+            10,
+        ),
+    ];
+    for (input, expected) in tests {
+        let evaluated = testEval(input);
+        let evaluated: ReturnValue = evaluated.unwrap().try_into().unwrap();
+        testIntegerObject(*evaluated.0, expected);
     }
 }

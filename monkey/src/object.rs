@@ -19,6 +19,7 @@ pub enum ObjectKind {
     INTEGER,
     BOOLEAN,
     NULL,
+    RETURN_VALUE,
 }
 
 #[enum_dispatch]
@@ -27,6 +28,7 @@ pub enum ObjectEnum {
     Integer(Integer),
     Boolean(Boolean),
     Null(Null),
+    ReturnValue(ReturnValue),
 }
 
 #[enum_dispatch(ObjectEnum)]
@@ -75,5 +77,18 @@ impl Object for Null {
 
     fn Inspect(&self) -> String {
         "null".into()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReturnValue(pub(crate) Box<ObjectEnum>);
+
+impl Object for ReturnValue {
+    fn Type(&self) -> ObjectKind {
+        ObjectKind::RETURN_VALUE
+    }
+
+    fn Inspect(&self) -> String {
+        self.0.Inspect()
     }
 }
