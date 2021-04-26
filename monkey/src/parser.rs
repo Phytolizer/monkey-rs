@@ -100,17 +100,17 @@ impl TokenTypeExt for TokenKind {
     }
 }
 
-pub(crate) struct Parser<'src> {
+pub struct Parser<'src> {
     lexer: Lexer<'src>,
 
     curToken: Token<'src>,
     peekToken: Token<'src>,
 
-    pub(crate) errors: Vec<String>,
+    pub errors: Vec<String>,
 }
 
 impl<'src> Parser<'src> {
-    pub(crate) fn New(lexer: Lexer<'src>) -> Self {
+    pub fn New(lexer: Lexer<'src>) -> Self {
         let mut p = Self {
             lexer,
             curToken: Token::default(),
@@ -124,7 +124,7 @@ impl<'src> Parser<'src> {
         p
     }
 
-    pub(crate) fn ParseProgram(&mut self) -> Program<'src> {
+    pub fn ParseProgram(&mut self) -> Program<'src> {
         let mut statements = vec![];
 
         while self.curToken.kind != TokenKind::EOF {

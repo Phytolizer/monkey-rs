@@ -2,8 +2,9 @@ use std::io;
 
 use io::BufRead;
 use io::BufReader;
+use monkey::ast::Node;
 use monkey::lexer::Lexer;
-use monkey::token::TokenKind;
+use monkey::parser::Parser;
 
 const PROMPT: &str = ">> ";
 
@@ -21,16 +22,17 @@ pub(crate) fn Start(i: &mut dyn io::Read, o: &mut dyn io::Write) -> io::Result<(
             break;
         }
 
-        let mut l = Lexer::New(&line);
-
-        loop {
-            let tok = l.NextToken();
-            if tok.kind == TokenKind::EOF {
-                break;
+        let l = Lexer::New(&line);
+        let mut p = Parser::New(l);
+        let program = p.ParseProgram();
+        if !p.errors.is_empty() {
+            for error in p.errors {
+                eprintln!("parse error: {}", error);
             }
-
-            writeln!(o, "{}", tok)?;
+            continue;
         }
+
+        println!("{}", program.String());
     }
     Ok(())
 }

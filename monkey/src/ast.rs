@@ -11,7 +11,7 @@ pub(crate) enum NodeEnum<'src> {
 }
 
 #[enum_dispatch(NodeEnum)]
-pub(crate) trait Node<'src>: std::fmt::Debug + Clone {
+pub trait Node<'src>: std::fmt::Debug + Clone {
     fn TokenLiteral(&self) -> &'src str;
     fn String(&self) -> String;
 }
@@ -90,7 +90,7 @@ impl<'src> Node<'src> for ExpressionEnum<'src> {
 pub(crate) trait Expression<'src>: Node<'src> {}
 
 #[derive(Debug, Clone)]
-pub(crate) struct Program<'src> {
+pub struct Program<'src> {
     pub(crate) statements: Vec<StatementEnum<'src>>,
 }
 
