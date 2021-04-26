@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 use crate::lexer::Lexer;
+use crate::object::Boolean;
 use crate::object::Integer;
 use crate::object::ObjectEnum;
 use crate::parser::Parser;
@@ -20,11 +21,25 @@ fn testIntegerObject(obj: ObjectEnum, expected: i64) {
     assert_eq!(result.value, expected);
 }
 
+fn testBooleanObject(obj: ObjectEnum, expected: bool) {
+    let result: Boolean = obj.try_into().unwrap();
+    assert_eq!(result.value, expected);
+}
+
 #[test]
 fn EvalIntegerExpression() {
     let tests = vec![("5", 5), ("10", 10)];
     for (input, expected) in tests {
         let evaluated = testEval(input);
         testIntegerObject(evaluated.unwrap(), expected);
+    }
+}
+
+#[test]
+fn EvalBooleanExpression() {
+    let tests = vec![("true", true), ("false", false)];
+    for (input, expected) in tests {
+        let evaluated = testEval(input);
+        testBooleanObject(evaluated.unwrap(), expected);
     }
 }
