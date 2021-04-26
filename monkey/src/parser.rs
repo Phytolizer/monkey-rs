@@ -1,6 +1,11 @@
+use crate::ast::BlockStatement;
+use crate::ast::Boolean;
+use crate::ast::CallExpression;
 use crate::ast::ExpressionEnum;
 use crate::ast::ExpressionStatement;
+use crate::ast::FunctionLiteral;
 use crate::ast::Identifier;
+use crate::ast::IfExpression;
 use crate::ast::InfixExpression;
 use crate::ast::IntegerLiteral;
 use crate::ast::LetStatement;
@@ -31,11 +36,17 @@ enum PrefixDispatcher {
     PARSE_IDENTIFIER,
     PARSE_INTEGER_LITERAL,
     PARSE_PREFIX_EXPRESSION,
+    PARSE_BOOLEAN,
+    PARSE_GROUPED_EXPRESSION,
+    PARSE_IF_EXPRESSION,
+    PARSE_FUNCTION_LITERAL,
 }
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[allow(clippy::upper_case_acronyms)]
 enum InfixDispatcher {
     PARSE_INFIX_EXPRESSION,
+    PARSE_CALL_EXPRESSION,
 }
 
 trait TokenTypeExt {
@@ -50,6 +61,10 @@ impl TokenTypeExt for TokenKind {
             Self::IDENT => Some(PrefixDispatcher::PARSE_IDENTIFIER),
             Self::INT => Some(PrefixDispatcher::PARSE_INTEGER_LITERAL),
             Self::BANG | Self::MINUS => Some(PrefixDispatcher::PARSE_PREFIX_EXPRESSION),
+            Self::TRUE | Self::FALSE => Some(PrefixDispatcher::PARSE_BOOLEAN),
+            Self::LPAREN => Some(PrefixDispatcher::PARSE_GROUPED_EXPRESSION),
+            Self::IF => Some(PrefixDispatcher::PARSE_IF_EXPRESSION),
+            Self::FUNCTION => Some(PrefixDispatcher::PARSE_FUNCTION_LITERAL),
             _ => None,
         }
     }
@@ -64,6 +79,7 @@ impl TokenTypeExt for TokenKind {
             | Self::GREATER
             | Self::EQ
             | Self::NOT_EQ => Some(InfixDispatcher::PARSE_INFIX_EXPRESSION),
+            Self::LPAREN => Some(InfixDispatcher::PARSE_CALL_EXPRESSION),
             _ => None,
         }
     }
@@ -78,6 +94,7 @@ impl TokenTypeExt for TokenKind {
             Self::MINUS => Precedence::SUM,
             Self::STAR => Precedence::PRODUCT,
             Self::SLASH => Precedence::PRODUCT,
+            Self::LPAREN => Precedence::CALL,
             _ => Precedence::LOWEST,
         }
     }
@@ -196,6 +213,119 @@ impl<'src> Parser<'src> {
             PrefixDispatcher::PARSE_PREFIX_EXPRESSION => {
                 self.parsePrefixExpression().map(Into::into)
             }
+            PrefixDispatcher::PARSE_BOOLEAN => Some(self.parseBoolean().into()),
+            PrefixDispatcher::PARSE_GROUPED_EXPRESSION => self.parseGroupedExpression(),
+            PrefixDispatcher::PARSE_IF_EXPRESSION => self.parseIfExpression().map(Into::into),
+            PrefixDispatcher::PARSE_FUNCTION_LITERAL => self.parseFunctionLiteral().map(Into::into),
+        }
+    }
+
+    fn parseFunctionLiteral(&mut self) -> Option<FunctionLiteral<'src>> {
+        let token = self.curToken.clone();
+        if !self.expectPeek(TokenKind::LPAREN) {
+            return None;
+        }
+
+        let parameters = self.parseFunctionParameters()?;
+        if !self.expectPeek(TokenKind::LBRACE) {
+            return None;
+        }
+
+        let body = self.parseBlockStatement();
+        Some(FunctionLiteral {
+            token,
+            parameters,
+            body: Box::new(body),
+        })
+    }
+
+    fn parseFunctionParameters(&mut self) -> Option<Vec<Identifier<'src>>> {
+        let mut identifiers = vec![];
+        if self.peekTokenIs(TokenKind::RPAREN) {
+            self.nextToken();
+            return Some(identifiers);
+        }
+
+        self.nextToken();
+        identifiers.push(Identifier {
+            token: self.curToken.clone(),
+            value: self.curToken.literal,
+        });
+        while self.peekTokenIs(TokenKind::COMMA) {
+            self.nextToken();
+            self.nextToken();
+            identifiers.push(Identifier {
+                token: self.curToken.clone(),
+                value: self.curToken.literal,
+            });
+        }
+
+        if !self.expectPeek(TokenKind::RPAREN) {
+            return None;
+        }
+
+        Some(identifiers)
+    }
+
+    fn parseIfExpression(&mut self) -> Option<IfExpression<'src>> {
+        let token = self.curToken.clone();
+        if !self.expectPeek(TokenKind::LPAREN) {
+            return None;
+        }
+        self.nextToken();
+        let condition = self.parseExpression(Precedence::LOWEST)?;
+        if !self.expectPeek(TokenKind::RPAREN) {
+            return None;
+        }
+        if !self.expectPeek(TokenKind::LBRACE) {
+            return None;
+        }
+        let consequence = self.parseBlockStatement();
+
+        let mut alternative = None;
+        if self.peekTokenIs(TokenKind::ELSE) {
+            self.nextToken();
+            if !self.expectPeek(TokenKind::LBRACE) {
+                return None;
+            }
+            alternative = Some(self.parseBlockStatement());
+        }
+
+        Some(IfExpression {
+            token,
+            condition: Box::new(condition),
+            consequence: Box::new(consequence),
+            alternative: alternative.map(Box::new),
+        })
+    }
+
+    fn parseBlockStatement(&mut self) -> BlockStatement<'src> {
+        let token = self.curToken.clone();
+        let mut statements = vec![];
+        self.nextToken();
+        while !self.curTokenIs(TokenKind::RBRACE) && !self.curTokenIs(TokenKind::EOF) {
+            let stmt = self.parseStatement();
+            if let Some(stmt) = stmt {
+                statements.push(stmt);
+            }
+            self.nextToken();
+        }
+        BlockStatement { token, statements }
+    }
+
+    fn parseGroupedExpression(&mut self) -> Option<ExpressionEnum<'src>> {
+        self.nextToken();
+        let exp = self.parseExpression(Precedence::LOWEST);
+        if !self.expectPeek(TokenKind::RPAREN) {
+            return None;
+        }
+        exp
+    }
+
+    fn parseBoolean(&mut self) -> Boolean<'src> {
+        Boolean {
+            token: self.curToken.clone(),
+            value: self.curTokenIs(TokenKind::TRUE),
         }
     }
 
@@ -206,7 +336,48 @@ impl<'src> Parser<'src> {
     ) -> Option<ExpressionEnum<'src>> {
         match dispatcher {
             InfixDispatcher::PARSE_INFIX_EXPRESSION => self.parseInfixExpression(left),
+            InfixDispatcher::PARSE_CALL_EXPRESSION => self.parseCallExpression(left),
         }
+    }
+
+    fn parseCallExpression(
+        &mut self,
+        function: ExpressionEnum<'src>,
+    ) -> Option<ExpressionEnum<'src>> {
+        let token = self.curToken.clone();
+        let arguments = self.parseCallArguments()?;
+        Some(
+            CallExpression {
+                token,
+                function: Box::new(function),
+                arguments,
+            }
+            .into(),
+        )
+    }
+
+    fn parseCallArguments(&mut self) -> Option<Vec<ExpressionEnum<'src>>> {
+        let mut args = vec![];
+
+        if self.peekTokenIs(TokenKind::RPAREN) {
+            self.nextToken();
+            return Some(args);
+        }
+
+        self.nextToken();
+        args.push(self.parseExpression(Precedence::LOWEST)?);
+
+        while self.peekTokenIs(TokenKind::COMMA) {
+            self.nextToken();
+            self.nextToken();
+            args.push(self.parseExpression(Precedence::LOWEST)?);
+        }
+
+        if !self.expectPeek(TokenKind::RPAREN) {
+            return None;
+        }
+
+        Some(args)
     }
 
     fn parsePrefixExpression(&mut self) -> Option<PrefixExpression<'src>> {
@@ -319,7 +490,11 @@ mod tests {
 
     use super::*;
 
+    use crate::ast::Boolean;
+    use crate::ast::CallExpression;
     use crate::ast::ExpressionStatement;
+    use crate::ast::FunctionLiteral;
+    use crate::ast::IfExpression;
     use crate::ast::InfixExpression;
     use crate::ast::IntegerLiteral;
     use crate::ast::LetStatement;
@@ -329,11 +504,54 @@ mod tests {
     use crate::ast::StatementEnum;
     use std::convert::TryInto;
 
+    enum MonkeyLiteral {
+        Int(i64),
+        Bool(bool),
+        Ident(&'static str),
+    }
+
+    impl From<bool> for MonkeyLiteral {
+        fn from(val: bool) -> Self {
+            Self::Bool(val)
+        }
+    }
+
+    impl From<i64> for MonkeyLiteral {
+        fn from(val: i64) -> Self {
+            Self::Int(val)
+        }
+    }
+
+    impl From<&'static str> for MonkeyLiteral {
+        fn from(val: &'static str) -> Self {
+            Self::Ident(val)
+        }
+    }
+
     fn testLetStatement(stmt: StatementEnum, expectedName: &str) {
         assert_eq!(stmt.TokenLiteral(), "let");
         let let_stmt: LetStatement = stmt.try_into().unwrap();
         assert_eq!(let_stmt.name.value, expectedName);
         assert_eq!(let_stmt.name.TokenLiteral(), expectedName);
+    }
+
+    fn testBooleanLiteral(exp: ExpressionEnum, expected: bool) {
+        let b: Boolean = exp.try_into().unwrap();
+        assert_eq!(b.value, expected);
+        assert_eq!(b.TokenLiteral(), expected.to_string());
+    }
+
+    fn testIdentifier(exp: ExpressionEnum, ident: &'static str) {
+        let i: Identifier = exp.try_into().unwrap();
+        assert_eq!(i.TokenLiteral(), ident);
+    }
+
+    fn testLiteralExpression(exp: ExpressionEnum, expected: MonkeyLiteral) {
+        match expected {
+            MonkeyLiteral::Int(i) => testIntegerLiteral(exp, i),
+            MonkeyLiteral::Bool(b) => testBooleanLiteral(exp, b),
+            MonkeyLiteral::Ident(i) => testIdentifier(exp, i),
+        }
     }
 
     fn checkParserErrors(parser: &Parser) {
@@ -426,9 +644,14 @@ mod tests {
 
     #[test]
     fn PrefixExpressions() {
-        let prefix_tests = vec![("!5;", "!", 5i64), ("-15;", "-", 15)];
+        let prefix_tests: Vec<(&str, &str, MonkeyLiteral)> = vec![
+            ("!5;", "!", 5i64.into()),
+            ("-15;", "-", 15.into()),
+            ("!true;", "!", true.into()),
+            ("!false;", "!", false.into()),
+        ];
 
-        for (input, operator, integerValue) in prefix_tests.into_iter() {
+        for (input, operator, value) in prefix_tests.into_iter() {
             let l = Lexer::New(input);
             let mut p = Parser::New(l);
             let program = p.ParseProgram();
@@ -437,21 +660,24 @@ mod tests {
             let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
             let exp: PrefixExpression = stmt.expression.unwrap().try_into().unwrap();
             assert_eq!(exp.operator, operator);
-            testIntegerLiteral(*exp.right, integerValue);
+            testLiteralExpression(*exp.right, value);
         }
     }
 
     #[test]
     fn InfixExpressions() {
-        let infix_tests = vec![
-            ("5 + 5;", 5, "+", 5),
-            ("5 - 5;", 5, "-", 5),
-            ("5 * 5;", 5, "*", 5),
-            ("5 / 5;", 5, "/", 5),
-            ("5 < 5;", 5, "<", 5),
-            ("5 > 5;", 5, ">", 5),
-            ("5 == 5;", 5, "==", 5),
-            ("5 != 5;", 5, "!=", 5),
+        let infix_tests: Vec<(&str, MonkeyLiteral, &str, MonkeyLiteral)> = vec![
+            ("5 + 5;", 5.into(), "+", 5.into()),
+            ("5 - 5;", 5.into(), "-", 5.into()),
+            ("5 * 5;", 5.into(), "*", 5.into()),
+            ("5 / 5;", 5.into(), "/", 5.into()),
+            ("5 < 5;", 5.into(), "<", 5.into()),
+            ("5 > 5;", 5.into(), ">", 5.into()),
+            ("5 == 5;", 5.into(), "==", 5.into()),
+            ("5 != 5;", 5.into(), "!=", 5.into()),
+            ("true == true", true.into(), "==", true.into()),
+            ("true != false", true.into(), "!=", false.into()),
+            ("false == false", false.into(), "==", false.into()),
         ];
 
         for (input, leftValue, operator, rightValue) in infix_tests {
@@ -462,9 +688,9 @@ mod tests {
             assert_eq!(program.statements.len(), 1);
             let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
             let exp: InfixExpression = stmt.expression.unwrap().try_into().unwrap();
-            testIntegerLiteral(*exp.left, leftValue);
+            testLiteralExpression(*exp.left, leftValue);
             assert_eq!(exp.operator, operator);
-            testIntegerLiteral(*exp.right, rightValue);
+            testLiteralExpression(*exp.right, rightValue);
         }
     }
 
@@ -490,6 +716,24 @@ mod tests {
                 "3 + 4 * 5 == 3 * 1 + 4 * 5",
                 "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
             ),
+            ("true", "true"),
+            ("false", "false"),
+            ("3 > 5 == false", "((3 > 5) == false)"),
+            ("3 < 5 == true", "((3 < 5) == true)"),
+            ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
+            ("(5 + 5) * 2", "((5 + 5) * 2)"),
+            ("2 / (5 + 5)", "(2 / (5 + 5))"),
+            ("-(5 + 5)", "(-(5 + 5))"),
+            ("!(true == true)", "(!(true == true))"),
+            ("a + add(b * c) + d", "((a + add((b * c))) + d)"),
+            (
+                "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+                "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+            ),
+            (
+                "add(a + b + c * d / f + g)",
+                "add((((a + b) + ((c * d) / f)) + g))",
+            ),
         ];
 
         for (input, expected) in tests {
@@ -500,5 +744,139 @@ mod tests {
             let actual = program.String();
             assert_eq!(actual, expected);
         }
+    }
+
+    #[test]
+    fn BooleanExpression() {
+        let input = "true;";
+        let l = Lexer::New(input);
+        let mut p = Parser::New(l);
+        let program = p.ParseProgram();
+        checkParserErrors(&p);
+        assert_eq!(program.statements.len(), 1);
+        let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
+        let b: Boolean = stmt.expression.unwrap().try_into().unwrap();
+        assert_eq!(b.value, true);
+        assert_eq!(b.TokenLiteral(), "true");
+    }
+
+    #[test]
+    fn ParseIfExpression() {
+        let input = "if (x < y) { x }";
+        let l = Lexer::New(input);
+        let mut p = Parser::New(l);
+        let program = p.ParseProgram();
+        checkParserErrors(&p);
+        assert_eq!(program.statements.len(), 1);
+        let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
+        let exp: IfExpression = stmt.expression.unwrap().try_into().unwrap();
+        testInfixExpression(*exp.condition, "x".into(), "<", "y".into());
+        assert_eq!(exp.consequence.statements.len(), 1);
+        let consequence: ExpressionStatement =
+            exp.consequence.statements[0].clone().try_into().unwrap();
+        testIdentifier(consequence.expression.unwrap(), "x");
+        assert!(exp.alternative.is_none());
+    }
+
+    fn testInfixExpression(
+        exp: ExpressionEnum,
+        left: MonkeyLiteral,
+        operator: &str,
+        right: MonkeyLiteral,
+    ) {
+        let infix: InfixExpression = exp.try_into().unwrap();
+        testLiteralExpression(*infix.left, left);
+        assert_eq!(infix.operator, operator);
+        testLiteralExpression(*infix.right, right);
+    }
+
+    #[test]
+    fn IfElseExpression() {
+        let input = "if(x < y) { x } else { y }";
+        let l = Lexer::New(input);
+        let mut p = Parser::New(l);
+        let program = p.ParseProgram();
+        checkParserErrors(&p);
+        assert_eq!(program.statements.len(), 1);
+        let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
+        let exp: IfExpression = stmt.expression.unwrap().try_into().unwrap();
+        testInfixExpression(*exp.condition, "x".into(), "<", "y".into());
+        assert_eq!(exp.consequence.statements.len(), 1);
+        let consequence: ExpressionStatement =
+            exp.consequence.statements[0].clone().try_into().unwrap();
+        assert_matches!(
+            consequence.expression,
+            Some(ExpressionEnum::Identifier(Identifier { value: "x", .. }))
+        );
+        assert_eq!(exp.alternative.as_ref().unwrap().statements.len(), 1);
+        let alternative: ExpressionStatement = exp.alternative.unwrap().statements[0]
+            .clone()
+            .try_into()
+            .unwrap();
+        assert_matches!(
+            alternative.expression,
+            Some(ExpressionEnum::Identifier(Identifier { value: "y", .. }))
+        )
+    }
+
+    #[test]
+    fn ParseFunctionLiteral() {
+        let input = "fn(x, y) { x + y; }";
+        let l = Lexer::New(input);
+        let mut p = Parser::New(l);
+        let program = p.ParseProgram();
+        checkParserErrors(&p);
+        assert_eq!(program.statements.len(), 1);
+        let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
+        let function: FunctionLiteral = stmt.expression.unwrap().try_into().unwrap();
+        assert_eq!(function.parameters.len(), 2);
+        testLiteralExpression(function.parameters[0].clone().into(), "x".into());
+        testLiteralExpression(function.parameters[1].clone().into(), "y".into());
+        assert_eq!(function.body.statements.len(), 1);
+        let body: ExpressionStatement = function.body.statements[0].clone().try_into().unwrap();
+        testInfixExpression(body.expression.unwrap(), "x".into(), "+", "y".into());
+    }
+
+    #[test]
+    fn FunctionParameters() {
+        let tests = vec![
+            ("fn() {};", vec![]),
+            ("fn(x) {};", vec!["x"]),
+            ("fn(x, y, z) {};", vec!["x", "y", "z"]),
+        ];
+        for (input, expectedParams) in tests {
+            let l = Lexer::New(input);
+            let mut p = Parser::New(l);
+            let program = p.ParseProgram();
+            checkParserErrors(&p);
+            assert_eq!(program.statements.len(), 1);
+            let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
+            let function: FunctionLiteral = stmt.expression.unwrap().try_into().unwrap();
+            assert_eq!(function.parameters.len(), expectedParams.len());
+            for (actual, expected) in function
+                .parameters
+                .into_iter()
+                .zip(expectedParams.into_iter())
+            {
+                testLiteralExpression(actual.into(), expected.into());
+            }
+        }
+    }
+
+    #[test]
+    fn ParseCallExpression() {
+        let input = "add(1, 2 * 3, 4 + 5);";
+        let l = Lexer::New(input);
+        let mut p = Parser::New(l);
+        let program = p.ParseProgram();
+        checkParserErrors(&p);
+        assert_eq!(program.statements.len(), 1);
+        let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
+        let exp: CallExpression = stmt.expression.unwrap().try_into().unwrap();
+        testIdentifier(*exp.function, "add");
+        assert_eq!(exp.arguments.len(), 3);
+        testLiteralExpression(exp.arguments[0].clone(), 1.into());
+        testInfixExpression(exp.arguments[1].clone(), 2.into(), "*", 3.into());
+        testInfixExpression(exp.arguments[2].clone(), 4.into(), "+", 5.into());
     }
 }

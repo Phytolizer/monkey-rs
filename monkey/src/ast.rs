@@ -52,6 +52,10 @@ pub(crate) enum ExpressionEnum<'src> {
     IntegerLiteral(IntegerLiteral<'src>),
     PrefixExpression(PrefixExpression<'src>),
     InfixExpression(InfixExpression<'src>),
+    Boolean(Boolean<'src>),
+    IfExpression(IfExpression<'src>),
+    FunctionLiteral(FunctionLiteral<'src>),
+    CallExpression(CallExpression<'src>),
 }
 
 impl<'src> Node<'src> for ExpressionEnum<'src> {
@@ -61,6 +65,10 @@ impl<'src> Node<'src> for ExpressionEnum<'src> {
             Self::IntegerLiteral(e) => e.TokenLiteral(),
             Self::PrefixExpression(e) => e.TokenLiteral(),
             Self::InfixExpression(e) => e.TokenLiteral(),
+            Self::Boolean(e) => e.TokenLiteral(),
+            Self::IfExpression(e) => e.TokenLiteral(),
+            Self::FunctionLiteral(e) => e.TokenLiteral(),
+            Self::CallExpression(e) => e.TokenLiteral(),
         }
     }
 
@@ -70,6 +78,10 @@ impl<'src> Node<'src> for ExpressionEnum<'src> {
             Self::IntegerLiteral(e) => e.String(),
             Self::PrefixExpression(e) => e.String(),
             Self::InfixExpression(e) => e.String(),
+            Self::Boolean(e) => e.String(),
+            Self::IfExpression(e) => e.String(),
+            Self::FunctionLiteral(e) => e.String(),
+            Self::CallExpression(e) => e.String(),
         }
     }
 }
@@ -235,6 +247,113 @@ impl<'src> Node<'src> for InfixExpression<'src> {
 }
 
 impl<'src> Expression<'src> for InfixExpression<'src> {}
+
+#[derive(Debug, Clone)]
+pub(crate) struct Boolean<'src> {
+    pub(crate) token: Token<'src>,
+    pub(crate) value: bool,
+}
+
+impl<'src> Node<'src> for Boolean<'src> {
+    fn TokenLiteral(&self) -> &'src str {
+        self.token.literal
+    }
+
+    fn String(&self) -> String {
+        self.TokenLiteral().to_string()
+    }
+}
+
+impl<'src> Expression<'src> for Boolean<'src> {}
+
+#[derive(Debug, Clone)]
+pub(crate) struct IfExpression<'src> {
+    pub(crate) token: Token<'src>,
+    pub(crate) condition: Box<ExpressionEnum<'src>>,
+    pub(crate) consequence: Box<BlockStatement<'src>>,
+    pub(crate) alternative: Option<Box<BlockStatement<'src>>>,
+}
+
+impl<'src> Node<'src> for IfExpression<'src> {
+    fn TokenLiteral(&self) -> &'src str {
+        self.token.literal
+    }
+
+    fn String(&self) -> String {
+        let mut out = format!(
+            "if{} {}",
+            self.condition.String(),
+            self.consequence.String()
+        );
+        if let Some(alternative) = self.alternative.as_ref() {
+            out += &format!(" else {}", alternative.String());
+        }
+        out
+    }
+}
+
+impl<'src> Expression<'src> for IfExpression<'src> {}
+
+#[derive(Debug, Clone)]
+pub(crate) struct BlockStatement<'src> {
+    pub(crate) token: Token<'src>,
+    pub(crate) statements: Vec<StatementEnum<'src>>,
+}
+
+impl<'src> Node<'src> for BlockStatement<'src> {
+    fn TokenLiteral(&self) -> &'src str {
+        self.token.literal
+    }
+
+    fn String(&self) -> String {
+        itertools::join(self.statements.iter().map(|s| s.String()), "")
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct FunctionLiteral<'src> {
+    pub(crate) token: Token<'src>,
+    pub(crate) parameters: Vec<Identifier<'src>>,
+    pub(crate) body: Box<BlockStatement<'src>>,
+}
+
+impl<'src> Node<'src> for FunctionLiteral<'src> {
+    fn TokenLiteral(&self) -> &'src str {
+        self.token.literal
+    }
+
+    fn String(&self) -> String {
+        format!(
+            "{}({}){}",
+            self.TokenLiteral(),
+            itertools::join(self.parameters.iter().map(|p| p.String()), ", "),
+            self.body.String()
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CallExpression<'src> {
+    pub(crate) token: Token<'src>,
+    pub(crate) function: Box<ExpressionEnum<'src>>,
+    pub(crate) arguments: Vec<ExpressionEnum<'src>>,
+}
+
+impl<'src> Node<'src> for CallExpression<'src> {
+    fn TokenLiteral(&self) -> &'src str {
+        self.token.literal
+    }
+
+    fn String(&self) -> String {
+        format!(
+            "{}({})",
+            self.function.String(),
+            itertools::join(self.arguments.iter().map(|a| a.String()), ", ")
+        )
+    }
+}
+
+impl<'src> Expression<'src> for CallExpression<'src> {}
 
 #[cfg(test)]
 mod tests {
