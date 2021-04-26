@@ -150,7 +150,7 @@ impl<'src> Parser<'src> {
         match self.curToken.kind {
             TokenKind::LET => self.parseLetStatement(),
             TokenKind::RETURN => self.parseReturnStatement().map(Into::into),
-            _ => Some(self.parseExpressionStatement().into()),
+            _ => self.parseExpressionStatement().map(Into::into),
         }
     }
 
@@ -194,16 +194,16 @@ impl<'src> Parser<'src> {
         Some(ReturnStatement { token, returnValue })
     }
 
-    fn parseExpressionStatement(&mut self) -> ExpressionStatement<'src> {
+    fn parseExpressionStatement(&mut self) -> Option<ExpressionStatement<'src>> {
         let token = self.curToken.clone();
 
-        let expression = self.parseExpression(Precedence::LOWEST);
+        let expression = self.parseExpression(Precedence::LOWEST)?;
 
         if self.peekTokenIs(TokenKind::SEMICOLON) {
             self.nextToken();
         }
 
-        ExpressionStatement { token, expression }
+        Some(ExpressionStatement { token, expression })
     }
 
     fn dispatchPrefix(&mut self, dispatcher: PrefixDispatcher) -> Option<ExpressionEnum<'src>> {
@@ -617,7 +617,7 @@ mod tests {
         checkParserErrors(&p);
         assert_eq!(program.statements.len(), 1);
         let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
-        let ident: Identifier = stmt.expression.unwrap().try_into().unwrap();
+        let ident: Identifier = stmt.expression.try_into().unwrap();
         assert_eq!(ident.value, "foobar");
         assert_eq!(ident.TokenLiteral(), "foobar");
     }
@@ -631,7 +631,7 @@ mod tests {
         checkParserErrors(&p);
         assert_eq!(program.statements.len(), 1);
         let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
-        let literal: IntegerLiteral = stmt.expression.unwrap().try_into().unwrap();
+        let literal: IntegerLiteral = stmt.expression.try_into().unwrap();
         assert_eq!(literal.value, 5);
         assert_eq!(literal.TokenLiteral(), "5");
     }
@@ -658,7 +658,7 @@ mod tests {
             checkParserErrors(&p);
             assert_eq!(program.statements.len(), 1);
             let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
-            let exp: PrefixExpression = stmt.expression.unwrap().try_into().unwrap();
+            let exp: PrefixExpression = stmt.expression.try_into().unwrap();
             assert_eq!(exp.operator, operator);
             testLiteralExpression(*exp.right, value);
         }
@@ -687,7 +687,7 @@ mod tests {
             checkParserErrors(&p);
             assert_eq!(program.statements.len(), 1);
             let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
-            let exp: InfixExpression = stmt.expression.unwrap().try_into().unwrap();
+            let exp: InfixExpression = stmt.expression.try_into().unwrap();
             testLiteralExpression(*exp.left, leftValue);
             assert_eq!(exp.operator, operator);
             testLiteralExpression(*exp.right, rightValue);
@@ -755,7 +755,7 @@ mod tests {
         checkParserErrors(&p);
         assert_eq!(program.statements.len(), 1);
         let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
-        let b: Boolean = stmt.expression.unwrap().try_into().unwrap();
+        let b: Boolean = stmt.expression.try_into().unwrap();
         assert_eq!(b.value, true);
         assert_eq!(b.TokenLiteral(), "true");
     }
@@ -769,12 +769,12 @@ mod tests {
         checkParserErrors(&p);
         assert_eq!(program.statements.len(), 1);
         let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
-        let exp: IfExpression = stmt.expression.unwrap().try_into().unwrap();
+        let exp: IfExpression = stmt.expression.try_into().unwrap();
         testInfixExpression(*exp.condition, "x".into(), "<", "y".into());
         assert_eq!(exp.consequence.statements.len(), 1);
         let consequence: ExpressionStatement =
             exp.consequence.statements[0].clone().try_into().unwrap();
-        testIdentifier(consequence.expression.unwrap(), "x");
+        testIdentifier(consequence.expression, "x");
         assert!(exp.alternative.is_none());
     }
 
@@ -799,14 +799,14 @@ mod tests {
         checkParserErrors(&p);
         assert_eq!(program.statements.len(), 1);
         let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
-        let exp: IfExpression = stmt.expression.unwrap().try_into().unwrap();
+        let exp: IfExpression = stmt.expression.try_into().unwrap();
         testInfixExpression(*exp.condition, "x".into(), "<", "y".into());
         assert_eq!(exp.consequence.statements.len(), 1);
         let consequence: ExpressionStatement =
             exp.consequence.statements[0].clone().try_into().unwrap();
         assert_matches!(
             consequence.expression,
-            Some(ExpressionEnum::Identifier(Identifier { value: "x", .. }))
+            ExpressionEnum::Identifier(Identifier { value: "x", .. })
         );
         assert_eq!(exp.alternative.as_ref().unwrap().statements.len(), 1);
         let alternative: ExpressionStatement = exp.alternative.unwrap().statements[0]
@@ -815,7 +815,7 @@ mod tests {
             .unwrap();
         assert_matches!(
             alternative.expression,
-            Some(ExpressionEnum::Identifier(Identifier { value: "y", .. }))
+            ExpressionEnum::Identifier(Identifier { value: "y", .. })
         )
     }
 
@@ -828,13 +828,13 @@ mod tests {
         checkParserErrors(&p);
         assert_eq!(program.statements.len(), 1);
         let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
-        let function: FunctionLiteral = stmt.expression.unwrap().try_into().unwrap();
+        let function: FunctionLiteral = stmt.expression.try_into().unwrap();
         assert_eq!(function.parameters.len(), 2);
         testLiteralExpression(function.parameters[0].clone().into(), "x".into());
         testLiteralExpression(function.parameters[1].clone().into(), "y".into());
         assert_eq!(function.body.statements.len(), 1);
         let body: ExpressionStatement = function.body.statements[0].clone().try_into().unwrap();
-        testInfixExpression(body.expression.unwrap(), "x".into(), "+", "y".into());
+        testInfixExpression(body.expression, "x".into(), "+", "y".into());
     }
 
     #[test]
@@ -851,7 +851,7 @@ mod tests {
             checkParserErrors(&p);
             assert_eq!(program.statements.len(), 1);
             let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
-            let function: FunctionLiteral = stmt.expression.unwrap().try_into().unwrap();
+            let function: FunctionLiteral = stmt.expression.try_into().unwrap();
             assert_eq!(function.parameters.len(), expectedParams.len());
             for (actual, expected) in function
                 .parameters
@@ -872,7 +872,7 @@ mod tests {
         checkParserErrors(&p);
         assert_eq!(program.statements.len(), 1);
         let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
-        let exp: CallExpression = stmt.expression.unwrap().try_into().unwrap();
+        let exp: CallExpression = stmt.expression.try_into().unwrap();
         testIdentifier(*exp.function, "add");
         assert_eq!(exp.arguments.len(), 3);
         testLiteralExpression(exp.arguments[0].clone(), 1.into());

@@ -4,7 +4,7 @@ use crate::token::Token;
 
 #[enum_dispatch]
 #[derive(Debug, Clone)]
-pub(crate) enum NodeEnum<'src> {
+pub enum NodeEnum<'src> {
     Expression(ExpressionEnum<'src>),
     Statement(StatementEnum<'src>),
     Program(Program<'src>),
@@ -18,7 +18,7 @@ pub trait Node<'src>: std::fmt::Debug + Clone {
 
 #[enum_dispatch]
 #[derive(Debug, Clone)]
-pub(crate) enum StatementEnum<'src> {
+pub enum StatementEnum<'src> {
     Let(LetStatement<'src>),
     Return(ReturnStatement<'src>),
     Expression(ExpressionStatement<'src>),
@@ -43,11 +43,11 @@ impl<'src> Node<'src> for StatementEnum<'src> {
 }
 
 #[enum_dispatch(StatementEnum)]
-pub(crate) trait Statement<'src>: Node<'src> {}
+pub trait Statement<'src>: Node<'src> {}
 
 #[enum_dispatch]
 #[derive(Debug, Clone)]
-pub(crate) enum ExpressionEnum<'src> {
+pub enum ExpressionEnum<'src> {
     Identifier(Identifier<'src>),
     IntegerLiteral(IntegerLiteral<'src>),
     PrefixExpression(PrefixExpression<'src>),
@@ -87,11 +87,11 @@ impl<'src> Node<'src> for ExpressionEnum<'src> {
 }
 
 #[enum_dispatch(ExpressionEnum)]
-pub(crate) trait Expression<'src>: Node<'src> {}
+pub trait Expression<'src>: Node<'src> {}
 
 #[derive(Debug, Clone)]
 pub struct Program<'src> {
-    pub(crate) statements: Vec<StatementEnum<'src>>,
+    pub statements: Vec<StatementEnum<'src>>,
 }
 
 impl<'src> Node<'src> for Program<'src> {
@@ -113,10 +113,10 @@ impl<'src> Node<'src> for Program<'src> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct LetStatement<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) name: Identifier<'src>,
-    pub(crate) value: ExpressionEnum<'src>,
+pub struct LetStatement<'src> {
+    pub token: Token<'src>,
+    pub name: Identifier<'src>,
+    pub value: ExpressionEnum<'src>,
 }
 
 impl<'src> Node<'src> for LetStatement<'src> {
@@ -132,9 +132,9 @@ impl<'src> Node<'src> for LetStatement<'src> {
 impl<'src> Expression<'src> for LetStatement<'src> {}
 
 #[derive(Debug, Clone)]
-pub(crate) struct Identifier<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) value: &'src str,
+pub struct Identifier<'src> {
+    pub token: Token<'src>,
+    pub value: &'src str,
 }
 
 impl<'src> Node<'src> for Identifier<'src> {
@@ -148,9 +148,9 @@ impl<'src> Node<'src> for Identifier<'src> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ReturnStatement<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) returnValue: ExpressionEnum<'src>,
+pub struct ReturnStatement<'src> {
+    pub token: Token<'src>,
+    pub returnValue: ExpressionEnum<'src>,
 }
 
 impl<'src> Node<'src> for ReturnStatement<'src> {
@@ -166,9 +166,9 @@ impl<'src> Node<'src> for ReturnStatement<'src> {
 impl<'src> Statement<'src> for ReturnStatement<'src> {}
 
 #[derive(Debug, Clone)]
-pub(crate) struct ExpressionStatement<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) expression: Option<ExpressionEnum<'src>>,
+pub struct ExpressionStatement<'src> {
+    pub token: Token<'src>,
+    pub expression: ExpressionEnum<'src>,
 }
 
 impl<'src> Node<'src> for ExpressionStatement<'src> {
@@ -177,19 +177,16 @@ impl<'src> Node<'src> for ExpressionStatement<'src> {
     }
 
     fn String(&self) -> String {
-        self.expression
-            .as_ref()
-            .map(|e| e.String())
-            .unwrap_or_default()
+        self.expression.String()
     }
 }
 
 impl<'src> Statement<'src> for ExpressionStatement<'src> {}
 
 #[derive(Debug, Clone)]
-pub(crate) struct IntegerLiteral<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) value: i64,
+pub struct IntegerLiteral<'src> {
+    pub token: Token<'src>,
+    pub value: i64,
 }
 
 impl<'src> Node<'src> for IntegerLiteral<'src> {
@@ -205,10 +202,10 @@ impl<'src> Node<'src> for IntegerLiteral<'src> {
 impl<'src> Expression<'src> for IntegerLiteral<'src> {}
 
 #[derive(Debug, Clone)]
-pub(crate) struct PrefixExpression<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) operator: &'src str,
-    pub(crate) right: Box<ExpressionEnum<'src>>,
+pub struct PrefixExpression<'src> {
+    pub token: Token<'src>,
+    pub operator: &'src str,
+    pub right: Box<ExpressionEnum<'src>>,
 }
 
 impl<'src> Node<'src> for PrefixExpression<'src> {
@@ -224,11 +221,11 @@ impl<'src> Node<'src> for PrefixExpression<'src> {
 impl<'src> Expression<'src> for PrefixExpression<'src> {}
 
 #[derive(Debug, Clone)]
-pub(crate) struct InfixExpression<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) left: Box<ExpressionEnum<'src>>,
-    pub(crate) operator: &'src str,
-    pub(crate) right: Box<ExpressionEnum<'src>>,
+pub struct InfixExpression<'src> {
+    pub token: Token<'src>,
+    pub left: Box<ExpressionEnum<'src>>,
+    pub operator: &'src str,
+    pub right: Box<ExpressionEnum<'src>>,
 }
 
 impl<'src> Node<'src> for InfixExpression<'src> {
@@ -249,9 +246,9 @@ impl<'src> Node<'src> for InfixExpression<'src> {
 impl<'src> Expression<'src> for InfixExpression<'src> {}
 
 #[derive(Debug, Clone)]
-pub(crate) struct Boolean<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) value: bool,
+pub struct Boolean<'src> {
+    pub token: Token<'src>,
+    pub value: bool,
 }
 
 impl<'src> Node<'src> for Boolean<'src> {
@@ -267,11 +264,11 @@ impl<'src> Node<'src> for Boolean<'src> {
 impl<'src> Expression<'src> for Boolean<'src> {}
 
 #[derive(Debug, Clone)]
-pub(crate) struct IfExpression<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) condition: Box<ExpressionEnum<'src>>,
-    pub(crate) consequence: Box<BlockStatement<'src>>,
-    pub(crate) alternative: Option<Box<BlockStatement<'src>>>,
+pub struct IfExpression<'src> {
+    pub token: Token<'src>,
+    pub condition: Box<ExpressionEnum<'src>>,
+    pub consequence: Box<BlockStatement<'src>>,
+    pub alternative: Option<Box<BlockStatement<'src>>>,
 }
 
 impl<'src> Node<'src> for IfExpression<'src> {
@@ -295,9 +292,9 @@ impl<'src> Node<'src> for IfExpression<'src> {
 impl<'src> Expression<'src> for IfExpression<'src> {}
 
 #[derive(Debug, Clone)]
-pub(crate) struct BlockStatement<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) statements: Vec<StatementEnum<'src>>,
+pub struct BlockStatement<'src> {
+    pub token: Token<'src>,
+    pub statements: Vec<StatementEnum<'src>>,
 }
 
 impl<'src> Node<'src> for BlockStatement<'src> {
@@ -311,10 +308,10 @@ impl<'src> Node<'src> for BlockStatement<'src> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct FunctionLiteral<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) parameters: Vec<Identifier<'src>>,
-    pub(crate) body: Box<BlockStatement<'src>>,
+pub struct FunctionLiteral<'src> {
+    pub token: Token<'src>,
+    pub parameters: Vec<Identifier<'src>>,
+    pub body: Box<BlockStatement<'src>>,
 }
 
 impl<'src> Node<'src> for FunctionLiteral<'src> {
@@ -333,10 +330,10 @@ impl<'src> Node<'src> for FunctionLiteral<'src> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct CallExpression<'src> {
-    pub(crate) token: Token<'src>,
-    pub(crate) function: Box<ExpressionEnum<'src>>,
-    pub(crate) arguments: Vec<ExpressionEnum<'src>>,
+pub struct CallExpression<'src> {
+    pub token: Token<'src>,
+    pub function: Box<ExpressionEnum<'src>>,
+    pub arguments: Vec<ExpressionEnum<'src>>,
 }
 
 impl<'src> Node<'src> for CallExpression<'src> {

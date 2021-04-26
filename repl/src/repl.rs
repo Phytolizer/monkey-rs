@@ -2,8 +2,9 @@ use std::io;
 
 use io::BufRead;
 use io::BufReader;
-use monkey::ast::Node;
+use monkey::evaluator::Eval;
 use monkey::lexer::Lexer;
+use monkey::object::Object;
 use monkey::parser::Parser;
 
 const PROMPT: &str = ">> ";
@@ -32,7 +33,9 @@ pub(crate) fn Start(i: &mut dyn io::Read, o: &mut dyn io::Write) -> io::Result<(
             continue;
         }
 
-        println!("{}", program.String());
+        if let Some(evaluated) = Eval(program.into()) {
+            writeln!(o, "{}", evaluated.Inspect())?;
+        }
     }
     Ok(())
 }
