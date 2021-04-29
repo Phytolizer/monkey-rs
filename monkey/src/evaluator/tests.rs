@@ -1,11 +1,7 @@
-use std::convert::TryInto;
-
 use crate::lexer::Lexer;
-use crate::object::Boolean;
-use crate::object::Integer;
 use crate::object::Null;
+use crate::object::Object;
 use crate::object::ObjectEnum;
-use crate::object::ReturnValue;
 use crate::parser::Parser;
 
 use super::Eval;
@@ -19,12 +15,18 @@ fn testEval(input: &str) -> Option<ObjectEnum> {
 }
 
 fn testIntegerObject(obj: ObjectEnum, expected: i64) {
-    let result: Integer = obj.try_into().unwrap();
+    let result = match obj {
+        ObjectEnum::Integer(i) => i,
+        _ => panic!("testIntegerObject: obj was {}", obj.Inspect()),
+    };
     assert_eq!(result.value, expected);
 }
 
 fn testBooleanObject(obj: ObjectEnum, expected: bool) {
-    let result: Boolean = obj.try_into().unwrap();
+    let result = match obj {
+        ObjectEnum::Boolean(b) => b,
+        _ => panic!("testBooleanObject: obj was {}", obj.Inspect()),
+    };
     assert_eq!(result.value, expected);
 }
 
@@ -145,7 +147,35 @@ fn EvalReturnStatement() {
     ];
     for (input, expected) in tests {
         let evaluated = testEval(input);
-        let evaluated: ReturnValue = evaluated.unwrap().try_into().unwrap();
-        testIntegerObject(*evaluated.0, expected);
+        let evaluated = evaluated.unwrap();
+        testIntegerObject(evaluated, expected);
+    }
+}
+
+#[test]
+fn ErrorHandling() {
+    let tests = vec![
+        ("5 + true;", "type mismatch: INTEGER + BOOLEAN"),
+        ("5 + true; 5;", "type mismatch: INTEGER + BOOLEAN"),
+        ("-true", "unknown operator: -BOOLEAN"),
+        ("true + false;", "unknown operator: BOOLEAN + BOOLEAN"),
+        ("5; true + false; 5;", "unknown operator: BOOLEAN + BOOLEAN"),
+        (
+            "if (10 > 1) { true + false; }",
+            "unknown operator: BOOLEAN + BOOLEAN",
+        ),
+        (
+            "if (10 > 1) { if (10 > 1) { return true + false; } return 1; }",
+            "unknown operator: BOOLEAN + BOOLEAN",
+        ),
+    ];
+    for (input, expected) in tests {
+        let evaluated = testEval(input).unwrap();
+        dbg!(&evaluated);
+        let err_obj = match evaluated {
+            ObjectEnum::Error(e) => e,
+            _ => panic!("no error message, got={}", evaluated.Inspect()),
+        };
+        assert_eq!(err_obj.0.as_str(), expected);
     }
 }

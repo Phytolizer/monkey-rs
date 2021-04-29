@@ -20,6 +20,7 @@ pub enum ObjectKind {
     BOOLEAN,
     NULL,
     RETURN_VALUE,
+    ERROR,
 }
 
 #[enum_dispatch]
@@ -29,6 +30,7 @@ pub enum ObjectEnum {
     Boolean(Boolean),
     Null(Null),
     ReturnValue(ReturnValue),
+    Error(Error),
 }
 
 #[enum_dispatch(ObjectEnum)]
@@ -90,5 +92,18 @@ impl Object for ReturnValue {
 
     fn Inspect(&self) -> String {
         self.0.Inspect()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Error(pub(crate) String);
+
+impl Object for Error {
+    fn Type(&self) -> ObjectKind {
+        ObjectKind::ERROR
+    }
+
+    fn Inspect(&self) -> String {
+        format!("ERROR: {}", self.0)
     }
 }

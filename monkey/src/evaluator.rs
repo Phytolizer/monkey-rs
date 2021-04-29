@@ -7,6 +7,7 @@ use crate::ast::NodeEnum;
 use crate::ast::Program;
 use crate::ast::StatementEnum;
 use crate::object::Boolean;
+use crate::object::Error;
 use crate::object::Integer;
 use crate::object::Null;
 use crate::object::Object;
@@ -46,7 +47,7 @@ fn evalPrefixExpression(operator: &str, right: ObjectEnum) -> ObjectEnum {
     match operator {
         "!" => evalBangOperatorExpression(right),
         "-" => evalMinusPrefixOperatorExpression(right),
-        _ => Null.into(),
+        _ => Error(format!("unknown operator: {}{:?}", operator, right.Type())).into(),
     }
 }
 
@@ -67,7 +68,7 @@ fn evalBangOperatorExpression(right: ObjectEnum) -> ObjectEnum {
 fn evalMinusPrefixOperatorExpression(right: ObjectEnum) -> ObjectEnum {
     match right {
         ObjectEnum::Integer(Integer { value }) => Integer { value: -value }.into(),
-        _ => Null.into(),
+        _ => Error(format!("unknown operator: -{:?}", right.Type())).into(),
     }
 }
 
@@ -84,8 +85,22 @@ fn evalInfixExpression(operator: &str, left: ObjectEnum, right: ObjectEnum) -> O
             value: left != right,
         }
         .into()
+    } else if left.Type() != right.Type() {
+        Error(format!(
+            "type mismatch: {:?} {} {:?}",
+            left.Type(),
+            operator,
+            right.Type()
+        ))
+        .into()
     } else {
-        Null.into()
+        Error(format!(
+            "unknown operator: {:?} {} {:?}",
+            left.Type(),
+            operator,
+            right.Type()
+        ))
+        .into()
     }
 }
 
@@ -125,7 +140,13 @@ fn evalIntegerInfixExpression(operator: &str, left: ObjectEnum, right: ObjectEnu
             value: left.value != right.value,
         }
         .into(),
-        _ => Null.into(),
+        _ => Error(format!(
+            "unknown operator: {:?} {} {:?}",
+            left.Type(),
+            operator,
+            right.Type()
+        ))
+        .into(),
     }
 }
 
@@ -147,8 +168,10 @@ fn evalProgram(program: Program) -> Option<ObjectEnum> {
     for stmt in program.statements {
         result = Eval(stmt.into());
 
-        if let Some(ObjectEnum::ReturnValue(rv)) = result {
-            return Some(rv.into());
+        match result {
+            Some(ObjectEnum::ReturnValue(ReturnValue(rv))) => return Some(*rv),
+            Some(ObjectEnum::Error(_)) => return result,
+            _ => {}
         }
     }
 
@@ -159,8 +182,9 @@ fn evalBlockStatement(bs: BlockStatement) -> Option<ObjectEnum> {
     let mut result: Option<ObjectEnum> = None;
     for statement in bs.statements {
         result = Eval(statement.into());
-        if let Some(ObjectEnum::ReturnValue(_)) = &result {
-            return result;
+        match &result {
+            Some(ObjectEnum::ReturnValue(_)) | Some(ObjectEnum::Error(_)) => return result,
+            _ => {}
         }
     }
     result

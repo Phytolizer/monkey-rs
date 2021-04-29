@@ -17,6 +17,11 @@ use crate::lexer::Lexer;
 use crate::token::Token;
 use crate::token::TokenKind;
 
+#[cfg(test)]
+const TRACE: bool = true;
+#[cfg(not(test))]
+const TRACE: bool = false;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[allow(clippy::upper_case_acronyms)]
 enum Precedence {
@@ -107,6 +112,7 @@ pub struct Parser<'src> {
     peekToken: Token,
 
     pub errors: Vec<String>,
+    indentLevel: usize,
 }
 
 impl<'src> Parser<'src> {
@@ -116,6 +122,7 @@ impl<'src> Parser<'src> {
             curToken: Token::default(),
             peekToken: Token::default(),
             errors: Vec::default(),
+            indentLevel: 0,
         };
 
         p.nextToken();
@@ -125,6 +132,7 @@ impl<'src> Parser<'src> {
     }
 
     pub fn ParseProgram(&mut self) -> Program {
+        self.trace_begin("program");
         let mut statements = vec![];
 
         while self.curToken.kind != TokenKind::EOF {
@@ -135,7 +143,26 @@ impl<'src> Parser<'src> {
             self.nextToken();
         }
 
+        self.trace_end("program");
         Program { statements }
+    }
+
+    fn indent(&self) -> String {
+        itertools::join(std::iter::once("  ").cycle().take(self.indentLevel), "")
+    }
+
+    fn trace_begin(&mut self, message: &str) {
+        if TRACE {
+            eprintln!("{}BEGIN {}", self.indent(), message);
+            self.indentLevel += 1;
+        }
+    }
+
+    fn trace_end(&mut self, message: &str) {
+        if TRACE {
+            self.indentLevel -= 1;
+            eprintln!("{}END   {}", self.indent(), message);
+        }
     }
 
     fn peekPrecedence(&self) -> Precedence {
@@ -147,14 +174,19 @@ impl<'src> Parser<'src> {
     }
 
     fn parseStatement(&mut self) -> Option<StatementEnum> {
-        match self.curToken.kind {
+        self.trace_begin("statement");
+        let out = match self.curToken.kind {
             TokenKind::LET => self.parseLetStatement(),
             TokenKind::RETURN => self.parseReturnStatement().map(Into::into),
             _ => self.parseExpressionStatement().map(Into::into),
-        }
+        };
+
+        self.trace_end("statement");
+        out
     }
 
     fn parseLetStatement(&mut self) -> Option<StatementEnum> {
+        self.trace_begin("let statement");
         let token = self.curToken.clone();
 
         if !self.expectPeek(TokenKind::IDENT) {
@@ -178,10 +210,12 @@ impl<'src> Parser<'src> {
             self.nextToken();
         }
 
+        self.trace_end("let statement");
         Some(LetStatement { token, name, value }.into())
     }
 
     fn parseReturnStatement(&mut self) -> Option<ReturnStatement> {
+        self.trace_begin("return statement");
         let token = self.curToken.clone();
         self.nextToken();
 
@@ -191,10 +225,12 @@ impl<'src> Parser<'src> {
             self.nextToken();
         }
 
+        self.trace_end("return statement");
         Some(ReturnStatement { token, returnValue })
     }
 
     fn parseExpressionStatement(&mut self) -> Option<ExpressionStatement> {
+        self.trace_begin("expression statement");
         let token = self.curToken.clone();
 
         let expression = self.parseExpression(Precedence::LOWEST)?;
@@ -203,6 +239,7 @@ impl<'src> Parser<'src> {
             self.nextToken();
         }
 
+        self.trace_end("expression statement");
         Some(ExpressionStatement { token, expression })
     }
 
@@ -221,6 +258,7 @@ impl<'src> Parser<'src> {
     }
 
     fn parseFunctionLiteral(&mut self) -> Option<FunctionLiteral> {
+        self.trace_begin("function literal");
         let token = self.curToken.clone();
         if !self.expectPeek(TokenKind::LPAREN) {
             return None;
@@ -232,6 +270,7 @@ impl<'src> Parser<'src> {
         }
 
         let body = self.parseBlockStatement();
+        self.trace_end("function literal");
         Some(FunctionLiteral {
             token,
             parameters,
@@ -240,9 +279,11 @@ impl<'src> Parser<'src> {
     }
 
     fn parseFunctionParameters(&mut self) -> Option<Vec<Identifier>> {
+        self.trace_begin("function parameters");
         let mut identifiers = vec![];
         if self.peekTokenIs(TokenKind::RPAREN) {
             self.nextToken();
+            self.trace_end("function parameters");
             return Some(identifiers);
         }
 
@@ -264,10 +305,12 @@ impl<'src> Parser<'src> {
             return None;
         }
 
+        self.trace_end("function parameters");
         Some(identifiers)
     }
 
     fn parseIfExpression(&mut self) -> Option<IfExpression> {
+        self.trace_begin("if expression");
         let token = self.curToken.clone();
         if !self.expectPeek(TokenKind::LPAREN) {
             return None;
@@ -291,6 +334,7 @@ impl<'src> Parser<'src> {
             alternative = Some(self.parseBlockStatement());
         }
 
+        self.trace_end("if expression");
         Some(IfExpression {
             token,
             condition: Box::new(condition),
@@ -300,6 +344,7 @@ impl<'src> Parser<'src> {
     }
 
     fn parseBlockStatement(&mut self) -> BlockStatement {
+        self.trace_begin("block statement");
         let token = self.curToken.clone();
         let mut statements = vec![];
         self.nextToken();
@@ -310,19 +355,24 @@ impl<'src> Parser<'src> {
             }
             self.nextToken();
         }
+        self.trace_end("block statement");
         BlockStatement { token, statements }
     }
 
     fn parseGroupedExpression(&mut self) -> Option<ExpressionEnum> {
+        self.trace_begin("grouped expression");
         self.nextToken();
         let exp = self.parseExpression(Precedence::LOWEST);
         if !self.expectPeek(TokenKind::RPAREN) {
             return None;
         }
+        self.trace_end("grouped expression");
         exp
     }
 
     fn parseBoolean(&mut self) -> Boolean {
+        self.trace_begin("boolean literal");
+        self.trace_end("boolean literal");
         Boolean {
             token: self.curToken.clone(),
             value: self.curTokenIs(TokenKind::TRUE),
@@ -341,8 +391,10 @@ impl<'src> Parser<'src> {
     }
 
     fn parseCallExpression(&mut self, function: ExpressionEnum) -> Option<ExpressionEnum> {
+        self.trace_begin("call expression");
         let token = self.curToken.clone();
         let arguments = self.parseCallArguments()?;
+        self.trace_end("call expression");
         Some(
             CallExpression {
                 token,
@@ -354,10 +406,12 @@ impl<'src> Parser<'src> {
     }
 
     fn parseCallArguments(&mut self) -> Option<Vec<ExpressionEnum>> {
+        self.trace_begin("call arguments");
         let mut args = vec![];
 
         if self.peekTokenIs(TokenKind::RPAREN) {
             self.nextToken();
+            self.trace_end("call arguments");
             return Some(args);
         }
 
@@ -374,14 +428,17 @@ impl<'src> Parser<'src> {
             return None;
         }
 
+        self.trace_end("call arguments");
         Some(args)
     }
 
     fn parsePrefixExpression(&mut self) -> Option<PrefixExpression> {
+        self.trace_begin("prefix expression");
         let token = self.curToken.clone();
         let operator = self.curToken.literal.clone();
         self.nextToken();
         let right = self.parseExpression(Precedence::PREFIX)?;
+        self.trace_end("prefix expression");
         Some(PrefixExpression {
             token,
             operator,
@@ -390,6 +447,8 @@ impl<'src> Parser<'src> {
     }
 
     fn parseIdentifier(&mut self) -> Identifier {
+        self.trace_begin("identifier");
+        self.trace_end("identifier");
         Identifier {
             token: self.curToken.clone(),
             value: self.curToken.literal.clone(),
@@ -397,6 +456,7 @@ impl<'src> Parser<'src> {
     }
 
     fn parseIntegerLiteral(&mut self) -> Option<IntegerLiteral> {
+        self.trace_begin("integer literal");
         let token = self.curToken.clone();
 
         let value: i64 = self.curToken.literal.parse().ok().or_else(|| {
@@ -407,10 +467,12 @@ impl<'src> Parser<'src> {
             None
         })?;
 
+        self.trace_end("integer literal");
         Some(IntegerLiteral { token, value })
     }
 
     fn parseExpression(&mut self, precedence: Precedence) -> Option<ExpressionEnum> {
+        self.trace_begin("expression");
         let prefix_dispatcher = self.curToken.kind.prefix_dispatcher().or_else(|| {
             self.noPrefixParseFnError(self.curToken.kind);
             None
@@ -424,6 +486,7 @@ impl<'src> Parser<'src> {
             self.nextToken();
             left_exp = self.dispatchInfix(left_exp, infix_dispatcher)?;
         }
+        self.trace_end("expression");
         Some(left_exp)
     }
 
@@ -464,11 +527,13 @@ impl<'src> Parser<'src> {
     }
 
     fn parseInfixExpression(&mut self, left: ExpressionEnum) -> Option<ExpressionEnum> {
+        self.trace_begin("infix expression");
         let token = self.curToken.clone();
         let operator = self.curToken.literal.clone();
         let precedence = self.curPrecedence();
         self.nextToken();
         let right = self.parseExpression(precedence)?;
+        self.trace_end("infix expression");
         Some(
             InfixExpression {
                 token,
