@@ -103,8 +103,8 @@ impl TokenTypeExt for TokenKind {
 pub struct Parser<'src> {
     lexer: Lexer<'src>,
 
-    curToken: Token<'src>,
-    peekToken: Token<'src>,
+    curToken: Token,
+    peekToken: Token,
 
     pub errors: Vec<String>,
 }
@@ -124,7 +124,7 @@ impl<'src> Parser<'src> {
         p
     }
 
-    pub fn ParseProgram(&mut self) -> Program<'src> {
+    pub fn ParseProgram(&mut self) -> Program {
         let mut statements = vec![];
 
         while self.curToken.kind != TokenKind::EOF {
@@ -146,7 +146,7 @@ impl<'src> Parser<'src> {
         self.curToken.kind.binary_precedence()
     }
 
-    fn parseStatement(&mut self) -> Option<StatementEnum<'src>> {
+    fn parseStatement(&mut self) -> Option<StatementEnum> {
         match self.curToken.kind {
             TokenKind::LET => self.parseLetStatement(),
             TokenKind::RETURN => self.parseReturnStatement().map(Into::into),
@@ -154,7 +154,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn parseLetStatement(&mut self) -> Option<StatementEnum<'src>> {
+    fn parseLetStatement(&mut self) -> Option<StatementEnum> {
         let token = self.curToken.clone();
 
         if !self.expectPeek(TokenKind::IDENT) {
@@ -163,7 +163,7 @@ impl<'src> Parser<'src> {
 
         let name = Identifier {
             token: self.curToken.clone(),
-            value: self.curToken.literal,
+            value: self.curToken.literal.clone(),
         };
 
         if !self.expectPeek(TokenKind::ASSIGN) {
@@ -181,7 +181,7 @@ impl<'src> Parser<'src> {
         Some(LetStatement { token, name, value }.into())
     }
 
-    fn parseReturnStatement(&mut self) -> Option<ReturnStatement<'src>> {
+    fn parseReturnStatement(&mut self) -> Option<ReturnStatement> {
         let token = self.curToken.clone();
         self.nextToken();
 
@@ -194,7 +194,7 @@ impl<'src> Parser<'src> {
         Some(ReturnStatement { token, returnValue })
     }
 
-    fn parseExpressionStatement(&mut self) -> Option<ExpressionStatement<'src>> {
+    fn parseExpressionStatement(&mut self) -> Option<ExpressionStatement> {
         let token = self.curToken.clone();
 
         let expression = self.parseExpression(Precedence::LOWEST)?;
@@ -206,7 +206,7 @@ impl<'src> Parser<'src> {
         Some(ExpressionStatement { token, expression })
     }
 
-    fn dispatchPrefix(&mut self, dispatcher: PrefixDispatcher) -> Option<ExpressionEnum<'src>> {
+    fn dispatchPrefix(&mut self, dispatcher: PrefixDispatcher) -> Option<ExpressionEnum> {
         match dispatcher {
             PrefixDispatcher::PARSE_IDENTIFIER => Some(self.parseIdentifier().into()),
             PrefixDispatcher::PARSE_INTEGER_LITERAL => self.parseIntegerLiteral().map(Into::into),
@@ -220,7 +220,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn parseFunctionLiteral(&mut self) -> Option<FunctionLiteral<'src>> {
+    fn parseFunctionLiteral(&mut self) -> Option<FunctionLiteral> {
         let token = self.curToken.clone();
         if !self.expectPeek(TokenKind::LPAREN) {
             return None;
@@ -239,7 +239,7 @@ impl<'src> Parser<'src> {
         })
     }
 
-    fn parseFunctionParameters(&mut self) -> Option<Vec<Identifier<'src>>> {
+    fn parseFunctionParameters(&mut self) -> Option<Vec<Identifier>> {
         let mut identifiers = vec![];
         if self.peekTokenIs(TokenKind::RPAREN) {
             self.nextToken();
@@ -249,14 +249,14 @@ impl<'src> Parser<'src> {
         self.nextToken();
         identifiers.push(Identifier {
             token: self.curToken.clone(),
-            value: self.curToken.literal,
+            value: self.curToken.literal.clone(),
         });
         while self.peekTokenIs(TokenKind::COMMA) {
             self.nextToken();
             self.nextToken();
             identifiers.push(Identifier {
                 token: self.curToken.clone(),
-                value: self.curToken.literal,
+                value: self.curToken.literal.clone(),
             });
         }
 
@@ -267,7 +267,7 @@ impl<'src> Parser<'src> {
         Some(identifiers)
     }
 
-    fn parseIfExpression(&mut self) -> Option<IfExpression<'src>> {
+    fn parseIfExpression(&mut self) -> Option<IfExpression> {
         let token = self.curToken.clone();
         if !self.expectPeek(TokenKind::LPAREN) {
             return None;
@@ -299,7 +299,7 @@ impl<'src> Parser<'src> {
         })
     }
 
-    fn parseBlockStatement(&mut self) -> BlockStatement<'src> {
+    fn parseBlockStatement(&mut self) -> BlockStatement {
         let token = self.curToken.clone();
         let mut statements = vec![];
         self.nextToken();
@@ -313,7 +313,7 @@ impl<'src> Parser<'src> {
         BlockStatement { token, statements }
     }
 
-    fn parseGroupedExpression(&mut self) -> Option<ExpressionEnum<'src>> {
+    fn parseGroupedExpression(&mut self) -> Option<ExpressionEnum> {
         self.nextToken();
         let exp = self.parseExpression(Precedence::LOWEST);
         if !self.expectPeek(TokenKind::RPAREN) {
@@ -322,7 +322,7 @@ impl<'src> Parser<'src> {
         exp
     }
 
-    fn parseBoolean(&mut self) -> Boolean<'src> {
+    fn parseBoolean(&mut self) -> Boolean {
         Boolean {
             token: self.curToken.clone(),
             value: self.curTokenIs(TokenKind::TRUE),
@@ -331,19 +331,16 @@ impl<'src> Parser<'src> {
 
     fn dispatchInfix(
         &mut self,
-        left: ExpressionEnum<'src>,
+        left: ExpressionEnum,
         dispatcher: InfixDispatcher,
-    ) -> Option<ExpressionEnum<'src>> {
+    ) -> Option<ExpressionEnum> {
         match dispatcher {
             InfixDispatcher::PARSE_INFIX_EXPRESSION => self.parseInfixExpression(left),
             InfixDispatcher::PARSE_CALL_EXPRESSION => self.parseCallExpression(left),
         }
     }
 
-    fn parseCallExpression(
-        &mut self,
-        function: ExpressionEnum<'src>,
-    ) -> Option<ExpressionEnum<'src>> {
+    fn parseCallExpression(&mut self, function: ExpressionEnum) -> Option<ExpressionEnum> {
         let token = self.curToken.clone();
         let arguments = self.parseCallArguments()?;
         Some(
@@ -356,7 +353,7 @@ impl<'src> Parser<'src> {
         )
     }
 
-    fn parseCallArguments(&mut self) -> Option<Vec<ExpressionEnum<'src>>> {
+    fn parseCallArguments(&mut self) -> Option<Vec<ExpressionEnum>> {
         let mut args = vec![];
 
         if self.peekTokenIs(TokenKind::RPAREN) {
@@ -380,9 +377,9 @@ impl<'src> Parser<'src> {
         Some(args)
     }
 
-    fn parsePrefixExpression(&mut self) -> Option<PrefixExpression<'src>> {
+    fn parsePrefixExpression(&mut self) -> Option<PrefixExpression> {
         let token = self.curToken.clone();
-        let operator = self.curToken.literal;
+        let operator = self.curToken.literal.clone();
         self.nextToken();
         let right = self.parseExpression(Precedence::PREFIX)?;
         Some(PrefixExpression {
@@ -392,14 +389,14 @@ impl<'src> Parser<'src> {
         })
     }
 
-    fn parseIdentifier(&mut self) -> Identifier<'src> {
+    fn parseIdentifier(&mut self) -> Identifier {
         Identifier {
             token: self.curToken.clone(),
-            value: self.curToken.literal,
+            value: self.curToken.literal.clone(),
         }
     }
 
-    fn parseIntegerLiteral(&mut self) -> Option<IntegerLiteral<'src>> {
+    fn parseIntegerLiteral(&mut self) -> Option<IntegerLiteral> {
         let token = self.curToken.clone();
 
         let value: i64 = self.curToken.literal.parse().ok().or_else(|| {
@@ -413,7 +410,7 @@ impl<'src> Parser<'src> {
         Some(IntegerLiteral { token, value })
     }
 
-    fn parseExpression(&mut self, precedence: Precedence) -> Option<ExpressionEnum<'src>> {
+    fn parseExpression(&mut self, precedence: Precedence) -> Option<ExpressionEnum> {
         let prefix_dispatcher = self.curToken.kind.prefix_dispatcher().or_else(|| {
             self.noPrefixParseFnError(self.curToken.kind);
             None
@@ -466,9 +463,9 @@ impl<'src> Parser<'src> {
         self.peekToken = self.lexer.NextToken();
     }
 
-    fn parseInfixExpression(&mut self, left: ExpressionEnum<'src>) -> Option<ExpressionEnum<'src>> {
+    fn parseInfixExpression(&mut self, left: ExpressionEnum) -> Option<ExpressionEnum> {
         let token = self.curToken.clone();
-        let operator = self.curToken.literal;
+        let operator = self.curToken.literal.clone();
         let precedence = self.curPrecedence();
         self.nextToken();
         let right = self.parseExpression(precedence)?;

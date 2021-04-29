@@ -43,21 +43,21 @@ pub enum TokenKind {
 }
 
 #[derive(Debug, Clone)]
-pub struct Token<'src> {
+pub struct Token {
     pub kind: TokenKind,
-    pub(crate) literal: &'src str,
+    pub(crate) literal: String,
 }
 
-impl<'src> Default for Token<'src> {
+impl Default for Token {
     fn default() -> Self {
         Self {
             kind: TokenKind::ILLEGAL,
-            literal: "",
+            literal: String::default(),
         }
     }
 }
 
-impl<'src> Display for Token<'src> {
+impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

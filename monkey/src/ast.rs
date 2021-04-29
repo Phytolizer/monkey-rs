@@ -4,29 +4,29 @@ use crate::token::Token;
 
 #[enum_dispatch]
 #[derive(Debug, Clone)]
-pub enum NodeEnum<'src> {
-    Expression(ExpressionEnum<'src>),
-    Statement(StatementEnum<'src>),
-    Program(Program<'src>),
+pub enum NodeEnum {
+    Expression(ExpressionEnum),
+    Statement(StatementEnum),
+    Program(Program),
 }
 
 #[enum_dispatch(NodeEnum)]
-pub trait Node<'src>: std::fmt::Debug + Clone {
-    fn TokenLiteral(&self) -> &'src str;
+pub trait Node: std::fmt::Debug + Clone {
+    fn TokenLiteral(&self) -> &str;
     fn String(&self) -> String;
 }
 
 #[enum_dispatch]
 #[derive(Debug, Clone)]
-pub enum StatementEnum<'src> {
-    Let(LetStatement<'src>),
-    Return(ReturnStatement<'src>),
-    Expression(ExpressionStatement<'src>),
-    Block(BlockStatement<'src>),
+pub enum StatementEnum {
+    Let(LetStatement),
+    Return(ReturnStatement),
+    Expression(ExpressionStatement),
+    Block(BlockStatement),
 }
 
-impl<'src> Node<'src> for StatementEnum<'src> {
-    fn TokenLiteral(&self) -> &'src str {
+impl Node for StatementEnum {
+    fn TokenLiteral(&self) -> &str {
         match self {
             Self::Let(s) => s.TokenLiteral(),
             Self::Return(s) => s.TokenLiteral(),
@@ -46,23 +46,23 @@ impl<'src> Node<'src> for StatementEnum<'src> {
 }
 
 #[enum_dispatch(StatementEnum)]
-pub trait Statement<'src>: Node<'src> {}
+pub trait Statement: Node {}
 
 #[enum_dispatch]
 #[derive(Debug, Clone)]
-pub enum ExpressionEnum<'src> {
-    Identifier(Identifier<'src>),
-    IntegerLiteral(IntegerLiteral<'src>),
-    PrefixExpression(PrefixExpression<'src>),
-    InfixExpression(InfixExpression<'src>),
-    Boolean(Boolean<'src>),
-    IfExpression(IfExpression<'src>),
-    FunctionLiteral(FunctionLiteral<'src>),
-    CallExpression(CallExpression<'src>),
+pub enum ExpressionEnum {
+    Identifier(Identifier),
+    IntegerLiteral(IntegerLiteral),
+    PrefixExpression(PrefixExpression),
+    InfixExpression(InfixExpression),
+    Boolean(Boolean),
+    IfExpression(IfExpression),
+    FunctionLiteral(FunctionLiteral),
+    CallExpression(CallExpression),
 }
 
-impl<'src> Node<'src> for ExpressionEnum<'src> {
-    fn TokenLiteral(&self) -> &'src str {
+impl Node for ExpressionEnum {
+    fn TokenLiteral(&self) -> &str {
         match self {
             Self::Identifier(e) => e.TokenLiteral(),
             Self::IntegerLiteral(e) => e.TokenLiteral(),
@@ -90,15 +90,15 @@ impl<'src> Node<'src> for ExpressionEnum<'src> {
 }
 
 #[enum_dispatch(ExpressionEnum)]
-pub trait Expression<'src>: Node<'src> {}
+pub trait Expression: Node {}
 
 #[derive(Debug, Clone)]
-pub struct Program<'src> {
-    pub statements: Vec<StatementEnum<'src>>,
+pub struct Program {
+    pub statements: Vec<StatementEnum>,
 }
 
-impl<'src> Node<'src> for Program<'src> {
-    fn TokenLiteral(&self) -> &'src str {
+impl Node for Program {
+    fn TokenLiteral(&self) -> &str {
         if !self.statements.is_empty() {
             self.statements[0].TokenLiteral()
         } else {
@@ -116,15 +116,15 @@ impl<'src> Node<'src> for Program<'src> {
 }
 
 #[derive(Debug, Clone)]
-pub struct LetStatement<'src> {
-    pub token: Token<'src>,
-    pub name: Identifier<'src>,
-    pub value: ExpressionEnum<'src>,
+pub struct LetStatement {
+    pub token: Token,
+    pub name: Identifier,
+    pub value: ExpressionEnum,
 }
 
-impl<'src> Node<'src> for LetStatement<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for LetStatement {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -132,17 +132,17 @@ impl<'src> Node<'src> for LetStatement<'src> {
     }
 }
 
-impl<'src> Expression<'src> for LetStatement<'src> {}
+impl Expression for LetStatement {}
 
 #[derive(Debug, Clone)]
-pub struct Identifier<'src> {
-    pub token: Token<'src>,
-    pub value: &'src str,
+pub struct Identifier {
+    pub token: Token,
+    pub value: String,
 }
 
-impl<'src> Node<'src> for Identifier<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for Identifier {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -151,14 +151,14 @@ impl<'src> Node<'src> for Identifier<'src> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ReturnStatement<'src> {
-    pub token: Token<'src>,
-    pub returnValue: ExpressionEnum<'src>,
+pub struct ReturnStatement {
+    pub token: Token,
+    pub returnValue: ExpressionEnum,
 }
 
-impl<'src> Node<'src> for ReturnStatement<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for ReturnStatement {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -166,17 +166,17 @@ impl<'src> Node<'src> for ReturnStatement<'src> {
     }
 }
 
-impl<'src> Statement<'src> for ReturnStatement<'src> {}
+impl Statement for ReturnStatement {}
 
 #[derive(Debug, Clone)]
-pub struct ExpressionStatement<'src> {
-    pub token: Token<'src>,
-    pub expression: ExpressionEnum<'src>,
+pub struct ExpressionStatement {
+    pub token: Token,
+    pub expression: ExpressionEnum,
 }
 
-impl<'src> Node<'src> for ExpressionStatement<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for ExpressionStatement {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -184,17 +184,17 @@ impl<'src> Node<'src> for ExpressionStatement<'src> {
     }
 }
 
-impl<'src> Statement<'src> for ExpressionStatement<'src> {}
+impl Statement for ExpressionStatement {}
 
 #[derive(Debug, Clone)]
-pub struct IntegerLiteral<'src> {
-    pub token: Token<'src>,
+pub struct IntegerLiteral {
+    pub token: Token,
     pub value: i64,
 }
 
-impl<'src> Node<'src> for IntegerLiteral<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for IntegerLiteral {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -202,18 +202,18 @@ impl<'src> Node<'src> for IntegerLiteral<'src> {
     }
 }
 
-impl<'src> Expression<'src> for IntegerLiteral<'src> {}
+impl Expression for IntegerLiteral {}
 
 #[derive(Debug, Clone)]
-pub struct PrefixExpression<'src> {
-    pub token: Token<'src>,
-    pub operator: &'src str,
-    pub right: Box<ExpressionEnum<'src>>,
+pub struct PrefixExpression {
+    pub token: Token,
+    pub operator: String,
+    pub right: Box<ExpressionEnum>,
 }
 
-impl<'src> Node<'src> for PrefixExpression<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for PrefixExpression {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -221,19 +221,19 @@ impl<'src> Node<'src> for PrefixExpression<'src> {
     }
 }
 
-impl<'src> Expression<'src> for PrefixExpression<'src> {}
+impl Expression for PrefixExpression {}
 
 #[derive(Debug, Clone)]
-pub struct InfixExpression<'src> {
-    pub token: Token<'src>,
-    pub left: Box<ExpressionEnum<'src>>,
-    pub operator: &'src str,
-    pub right: Box<ExpressionEnum<'src>>,
+pub struct InfixExpression {
+    pub token: Token,
+    pub left: Box<ExpressionEnum>,
+    pub operator: String,
+    pub right: Box<ExpressionEnum>,
 }
 
-impl<'src> Node<'src> for InfixExpression<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for InfixExpression {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -246,17 +246,17 @@ impl<'src> Node<'src> for InfixExpression<'src> {
     }
 }
 
-impl<'src> Expression<'src> for InfixExpression<'src> {}
+impl Expression for InfixExpression {}
 
 #[derive(Debug, Clone)]
-pub struct Boolean<'src> {
-    pub token: Token<'src>,
+pub struct Boolean {
+    pub token: Token,
     pub value: bool,
 }
 
-impl<'src> Node<'src> for Boolean<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for Boolean {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -264,19 +264,19 @@ impl<'src> Node<'src> for Boolean<'src> {
     }
 }
 
-impl<'src> Expression<'src> for Boolean<'src> {}
+impl Expression for Boolean {}
 
 #[derive(Debug, Clone)]
-pub struct IfExpression<'src> {
-    pub token: Token<'src>,
-    pub condition: Box<ExpressionEnum<'src>>,
-    pub consequence: Box<BlockStatement<'src>>,
-    pub alternative: Option<Box<BlockStatement<'src>>>,
+pub struct IfExpression {
+    pub token: Token,
+    pub condition: Box<ExpressionEnum>,
+    pub consequence: Box<BlockStatement>,
+    pub alternative: Option<Box<BlockStatement>>,
 }
 
-impl<'src> Node<'src> for IfExpression<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for IfExpression {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -292,17 +292,17 @@ impl<'src> Node<'src> for IfExpression<'src> {
     }
 }
 
-impl<'src> Expression<'src> for IfExpression<'src> {}
+impl Expression for IfExpression {}
 
 #[derive(Debug, Clone)]
-pub struct BlockStatement<'src> {
-    pub token: Token<'src>,
-    pub statements: Vec<StatementEnum<'src>>,
+pub struct BlockStatement {
+    pub token: Token,
+    pub statements: Vec<StatementEnum>,
 }
 
-impl<'src> Node<'src> for BlockStatement<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for BlockStatement {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -310,18 +310,18 @@ impl<'src> Node<'src> for BlockStatement<'src> {
     }
 }
 
-impl<'src> Statement<'src> for BlockStatement<'src> {}
+impl Statement for BlockStatement {}
 
 #[derive(Debug, Clone)]
-pub struct FunctionLiteral<'src> {
-    pub token: Token<'src>,
-    pub parameters: Vec<Identifier<'src>>,
-    pub body: Box<BlockStatement<'src>>,
+pub struct FunctionLiteral {
+    pub token: Token,
+    pub parameters: Vec<Identifier>,
+    pub body: Box<BlockStatement>,
 }
 
-impl<'src> Node<'src> for FunctionLiteral<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for FunctionLiteral {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -335,15 +335,15 @@ impl<'src> Node<'src> for FunctionLiteral<'src> {
 }
 
 #[derive(Debug, Clone)]
-pub struct CallExpression<'src> {
-    pub token: Token<'src>,
-    pub function: Box<ExpressionEnum<'src>>,
-    pub arguments: Vec<ExpressionEnum<'src>>,
+pub struct CallExpression {
+    pub token: Token,
+    pub function: Box<ExpressionEnum>,
+    pub arguments: Vec<ExpressionEnum>,
 }
 
-impl<'src> Node<'src> for CallExpression<'src> {
-    fn TokenLiteral(&self) -> &'src str {
-        self.token.literal
+impl Node for CallExpression {
+    fn TokenLiteral(&self) -> &str {
+        &self.token.literal
     }
 
     fn String(&self) -> String {
@@ -355,7 +355,7 @@ impl<'src> Node<'src> for CallExpression<'src> {
     }
 }
 
-impl<'src> Expression<'src> for CallExpression<'src> {}
+impl Expression for CallExpression {}
 
 #[cfg(test)]
 mod tests;

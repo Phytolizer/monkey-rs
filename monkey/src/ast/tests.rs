@@ -7,21 +7,21 @@ fn String() {
         statements: vec![LetStatement {
             token: Token {
                 kind: TokenKind::LET,
-                literal: "let",
+                literal: "let".into(),
             },
             name: Identifier {
                 token: Token {
                     kind: TokenKind::IDENT,
-                    literal: "myVar",
+                    literal: "myVar".into(),
                 },
-                value: "myVar",
+                value: "myVar".into(),
             },
             value: Identifier {
                 token: Token {
                     kind: TokenKind::IDENT,
-                    literal: "anotherVar",
+                    literal: "anotherVar".into(),
                 },
-                value: "anotherVar",
+                value: "anotherVar".into(),
             }
             .into(),
         }

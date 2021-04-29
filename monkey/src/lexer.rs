@@ -45,7 +45,7 @@ impl<'src> Lexer<'src> {
         }
     }
 
-    pub fn NextToken(&mut self) -> Token<'src> {
+    pub fn NextToken(&mut self) -> Token {
         self.skipWhitespace();
         let tok = match self.ch {
             ';' => self.singleCharToken(TokenKind::SEMICOLON),
@@ -78,11 +78,11 @@ impl<'src> Lexer<'src> {
             }
             '\0' => Token {
                 kind: TokenKind::EOF,
-                literal: "",
+                literal: String::default(),
             },
             ch if ch.is_alphabetic() => {
                 let literal = self.readIdentifier();
-                let kind = LookupIdent(literal);
+                let kind = LookupIdent(&literal);
                 return Token { kind, literal };
             }
             ch if ch.is_digit(10) => {
@@ -97,42 +97,42 @@ impl<'src> Lexer<'src> {
         tok
     }
 
-    fn singleCharToken(&self, kind: TokenKind) -> Token<'src> {
+    fn singleCharToken(&self, kind: TokenKind) -> Token {
         if self.pos < self.input.len() {
             Token {
                 kind,
-                literal: &self.input[self.pos..self.pos + 1],
+                literal: self.input[self.pos..self.pos + 1].to_string(),
             }
         } else {
             unreachable!()
         }
     }
 
-    fn twoCharToken(&self, kind: TokenKind) -> Token<'src> {
+    fn twoCharToken(&self, kind: TokenKind) -> Token {
         if self.pos < self.input.len() {
             Token {
                 kind,
-                literal: &self.input[self.pos - 1..self.pos + 1],
+                literal: self.input[self.pos - 1..self.pos + 1].to_string(),
             }
         } else {
             unreachable!()
         }
     }
 
-    fn readIdentifier(&mut self) -> &'src str {
+    fn readIdentifier(&mut self) -> String {
         let pos = self.pos;
         while self.ch.is_alphanumeric() {
             self.readChar();
         }
-        &self.input[pos..self.pos]
+        self.input[pos..self.pos].to_string()
     }
 
-    fn readNumber(&mut self) -> &'src str {
+    fn readNumber(&mut self) -> String {
         let pos = self.pos;
         while self.ch.is_digit(10) {
             self.readChar();
         }
-        &self.input[pos..self.pos]
+        self.input[pos..self.pos].to_string()
     }
 }
 

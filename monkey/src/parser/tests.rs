@@ -268,7 +268,7 @@ fn BooleanExpression() {
     assert_eq!(program.statements.len(), 1);
     let stmt: ExpressionStatement = program.statements[0].clone().try_into().unwrap();
     let b: Boolean = stmt.expression.try_into().unwrap();
-    assert_eq!(b.value, true);
+    assert!(b.value);
     assert_eq!(b.TokenLiteral(), "true");
 }
 
@@ -316,19 +316,22 @@ fn IfElseExpression() {
     assert_eq!(exp.consequence.statements.len(), 1);
     let consequence: ExpressionStatement =
         exp.consequence.statements[0].clone().try_into().unwrap();
-    assert_matches!(
-        consequence.expression,
-        ExpressionEnum::Identifier(Identifier { value: "x", .. })
-    );
+    match consequence.expression {
+        ExpressionEnum::Identifier(Identifier { value, .. }) if value.as_str() == "x" => {}
+        _ => panic!("wrong id for if consequence. got={}", consequence.String()),
+    }
     assert_eq!(exp.alternative.as_ref().unwrap().statements.len(), 1);
     let alternative: ExpressionStatement = exp.alternative.unwrap().statements[0]
         .clone()
         .try_into()
         .unwrap();
-    assert_matches!(
-        alternative.expression,
-        ExpressionEnum::Identifier(Identifier { value: "y", .. })
-    )
+    match alternative.expression {
+        ExpressionEnum::Identifier(Identifier { value, .. }) if value.as_str() == "y" => {}
+        _ => panic!(
+            "wrong id for if/else alternative. got={}",
+            alternative.String()
+        ),
+    }
 }
 
 #[test]

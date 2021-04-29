@@ -30,12 +30,12 @@ pub fn Eval(node: NodeEnum) -> Option<ObjectEnum> {
         NodeEnum::Expression(ExpressionEnum::Boolean(b)) => Some(Boolean { value: b.value }.into()),
         NodeEnum::Expression(ExpressionEnum::PrefixExpression(p)) => {
             let right = Eval((*p.right).into())?;
-            Some(evalPrefixExpression(p.operator, right))
+            Some(evalPrefixExpression(&p.operator, right))
         }
         NodeEnum::Expression(ExpressionEnum::InfixExpression(i)) => {
             let left = Eval((*i.left).into())?;
             let right = Eval((*i.right).into())?;
-            Some(evalInfixExpression(i.operator, left, right))
+            Some(evalInfixExpression(&i.operator, left, right))
         }
         NodeEnum::Expression(ExpressionEnum::IfExpression(i)) => evalIfExpression(i),
         _ => Some(Null.into()),
